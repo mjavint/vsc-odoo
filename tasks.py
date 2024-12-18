@@ -115,13 +115,11 @@ def install(c):
 
 
 @task()
-def lint(c, verbose=False, allfiles=False,  path=""):
+def lint(c, verbose=False, path=""):
     try:
-        cmd = "uv run pre-commit run --show-diff-on-failure --color=always"
+        cmd = "uv run pre-commit run --show-diff-on-failure --all-files --color=always"
         if verbose:
             cmd += " --verbose"
-        if allfiles:
-            cmd += " --all-files"
         with c.cd(str(PROJECT_ROOT / path)):
             c.run(cmd)
     except Exception as e:
