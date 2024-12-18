@@ -1,0 +1,10 @@
+debugpy
+pydevd-odoo
+pylint_odoo
+invoke
+copier
+PyYAML
+pre-commit
+ruff
+types-invoke
+openpyxl-stubs

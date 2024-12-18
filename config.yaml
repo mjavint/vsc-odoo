@@ -1,5 +1,6 @@
+python: "3.10"
 repos:
   custom:
-    - <path to custom repo>
-  odoo: <path to odoo server>
-  enterprise: <path to enterprise repo>
+    - /Users/mjavint/Workspaces/Aside/Automate/vsc-odoo/addons
+  odoo: /Users/mjavint/Repos/Odoo/odoo/odoo.18.0
+  enterprise: /Users/mjavint/Repos/Odoo/enterprise/enterprise.18.0
