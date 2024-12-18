@@ -1,0 +1,5 @@
+repos:
+  custom:
+    - <path to custom repo>
+  odoo: <path to odoo server>
+  enterprise: <path to enterprise repo>
