@@ -8,7 +8,7 @@ import platform
 # Logger configuration
 handler = logging.StreamHandler()
 # formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
-formatter = logging.Formatter("[ %(levelname)s ] - %(message)s")
+formatter = logging.Formatter("[%(levelname)s] - %(message)s")
 handler.setFormatter(formatter)
 logger = logging.getLogger(__name__)
 logger.addHandler(handler)
@@ -57,6 +57,60 @@ def pyright(c):
         logger.info("pyrightconfig.json created successfully")
     except Exception as e:
         logger.error(f"Failed to create pyrightconfig.json: {e}")
+
+
+@task
+def settings(c):
+    try:
+        logger.info("Creating or updating settings.json in .vscode directory")
+        vscode_dir = PROJECT_ROOT / ".vscode"
+        vscode_dir.mkdir(exist_ok=True)
+        settings_path = vscode_dir / "settings.json"
+
+        config = _load_config()
+        repos = []
+        for repo in config.get("repos").values():
+            if isinstance(repo, list):
+                repos.extend(repo)
+            if isinstance(repo, str):
+                repos.append(repo)
+        repos.append(f"{_get_path_odoo()}/addons")
+
+        settings = {
+            "python.autoComplete.extraPaths": [repo for repo in repos],
+            "python.formatting.provider": "none",
+            "python.linting.flake8Enabled": True,
+            "python.linting.ignorePatterns": [f"{_get_path_odoo()}/**/*.py"],
+            "python.linting.pylintArgs": [
+                f"--init-hook=\"import sys;sys.path.append('{_get_path_odoo()}')\"",
+                "--load-plugins=pylint_odoo",
+            ],
+            "python.linting.pylintEnabled": True,
+            "python.defaultInterpreterPath": "python3",
+            "restructuredtext.confPath": "",
+            "search.followSymlinks": False,
+            "search.useIgnoreFiles": False,
+            "[python]": {"editor.defaultFormatter": "ms-python.black-formatter"},
+            "[json]": {"editor.defaultFormatter": "esbenp.prettier-vscode"},
+            "[jsonc]": {"editor.defaultFormatter": "esbenp.prettier-vscode"},
+            "[markdown]": {"editor.defaultFormatter": "esbenp.prettier-vscode"},
+            "[yaml]": {"editor.defaultFormatter": "esbenp.prettier-vscode"},
+            "[xml]": {"editor.formatOnSave": False},
+        }
+
+        if settings_path.exists():
+            with open(settings_path, "r") as f:
+                current_settings = json.load(f)
+            current_settings.update(settings)
+        else:
+            current_settings = settings
+
+        with open(settings_path, "w") as f:
+            json.dump(current_settings, f, indent=4)
+
+        logger.info("settings.json created or updated successfully")
+    except Exception as e:
+        logger.error(f"Failed to create or update settings.json: {e}")
 
 
 @task
