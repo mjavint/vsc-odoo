@@ -14,14 +14,17 @@ logger = logging.getLogger(__name__)
 logger.addHandler(handler)
 logger.setLevel(logging.INFO)
 
-# Root directory of the project
+PYTHON_VERSION = "3.10"
+REQUIREMENTS_FILE = "requirements.txt"
 PROJECT_ROOT = Path(__file__).parent.absolute()
+CONFIG_FILE = PROJECT_ROOT / "config.yaml"
+VENV_DIR = "venv"
 
 
 def _load_config():
     try:
         logger.info("Loading configuration from config.yaml")
-        with open(PROJECT_ROOT / "config.yaml") as f:
+        with open(CONFIG_FILE) as f:
             config = load(f, Loader=Loader)
         return config
     except Exception as e:
@@ -30,7 +33,7 @@ def _load_config():
 
 def _get_path_odoo():
     try:
-        path_odoo = _load_config().get("repos").get("odoo")
+        path_odoo = _load_config().get("odoo").get("server")
         logger.info(f"Odoo path obtained: {path_odoo}")
         return path_odoo
     except Exception as e:
@@ -43,7 +46,7 @@ def pyright(c):
         logger.info("Creating pyrightconfig.json")
         config = _load_config()
         repos = []
-        for repo in config.get("repos").values():
+        for repo in config.get("odoo").values():
             if isinstance(repo, list):
                 repos.extend(repo)
             if isinstance(repo, str):
@@ -69,7 +72,7 @@ def settings(c):
 
         config = _load_config()
         repos = []
-        for repo in config.get("repos").values():
+        for repo in config.get("odoo").values():
             if isinstance(repo, list):
                 repos.extend(repo)
             if isinstance(repo, str):
@@ -117,7 +120,7 @@ def settings(c):
 def check_odoo(c):
     try:
         logger.info("Installing Odoo dependencies")
-        c.run(f"uv pip install -r {_get_path_odoo()}/requirements.txt")
+        c.run(f"uv pip install -r {_get_path_odoo()}/{REQUIREMENTS_FILE}")
         logger.info("Odoo dependencies installed successfully")
     except Exception as e:
         logger.error(f"Failed to install Odoo dependencies: {e}")
@@ -145,7 +148,7 @@ def check_uv(c):
 def deps(c):
     try:
         logger.info("Installing additional dependencies")
-        c.run("uv pip install -r requirements.txt")
+        c.run(f"uv pip install -r {REQUIREMENTS_FILE}")
         logger.info("Additional dependencies installed successfully")
     except Exception as e:
         logger.error(f"Failed to install additional dependencies: {e}")
@@ -154,9 +157,9 @@ def deps(c):
 @task(pre=[check_uv])
 def check(c):
     try:
-        version = _load_config().get("python", "3.10")
+        version = _load_config().get("python", PYTHON_VERSION)
         logger.info(f"Checking virtual environment with Python {version}")
-        if not Path("venv").exists():
+        if not Path(VENV_DIR).exists():
             logger.info("Creating virtual environment")
             c.run(f"uv venv venv --python {version}")
     except Exception as e:
