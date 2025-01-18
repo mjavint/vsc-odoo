@@ -3,8 +3,11 @@ pydevd-odoo
 pylint_odoo
 invoke
 copier
+ensurepath
 PyYAML
 pre-commit
 ruff
+black
 types-invoke
 openpyxl-stubs
+git-aggregator
