@@ -1,0 +1,8 @@
+./OCA/helpdesk:
+  defaults:
+    depth: 10
+  remotes:
+    oca: https://github.com/OCA/helpdesk.git
+  # target: oca 17.0
+  merges:
+    - oca 17.0

@@ -1,13 +1,14 @@
+git+https://github.com/OCA/openupgradelib.git
+git-aggregator
+copier
+pre-commit
 debugpy
 pydevd-odoo
 pylint_odoo
 invoke
-copier
 ensurepath
 PyYAML
-pre-commit
 ruff
 black
 types-invoke
 openpyxl-stubs
-git-aggregator

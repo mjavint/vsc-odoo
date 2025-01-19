@@ -1,9 +1,8 @@
 python: "3.10"
 odoo:
   custom:
-    - <path_to_custom_repo>
-  server: <odoo_server>
-  enterprise: <enterprise_repo>
+    - /Users/mjavint/Workspaces/Aside/Templates/vsc-odoo/OCA/helpdesk
+  server: /Users/mjavint/Repos/Odoo/odoo/odoo.17.0
+  # enterprise: <enterprise_repo>
 repos:
-    - <OCA>
-    - <Others>
+  - /Users/mjavint/Workspaces/Aside/Templates/vsc-odoo/OCA/helpdesk
