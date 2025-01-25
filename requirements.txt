@@ -12,3 +12,4 @@ ruff
 black
 types-invoke
 openpyxl-stubs
+pandas

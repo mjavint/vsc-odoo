@@ -1,8 +1,8 @@
-./OCA/helpdesk:
+./OCA/openupgrade:
   defaults:
-    depth: 10
+    depth: 1
   remotes:
-    oca: https://github.com/OCA/helpdesk.git
-  # target: oca 17.0
+    openupgrade: https://github.com/OCA/OpenUpgrade.git
+  # target: openupgrade 18.0
   merges:
-    - oca 17.0
+    - openupgrade 17.0

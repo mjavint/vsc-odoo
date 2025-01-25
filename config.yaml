@@ -1,8 +1,6 @@
 python: "3.10"
 odoo:
-  custom:
-    - /Users/mjavint/Workspaces/Aside/Templates/vsc-odoo/OCA/helpdesk
   server: /Users/mjavint/Repos/Odoo/odoo/odoo.17.0
-  # enterprise: <enterprise_repo>
+  enterprise: /Users/mjavint/Repos/Odoo/enterprise/enterprise.18.0
 repos:
-  - /Users/mjavint/Workspaces/Aside/Templates/vsc-odoo/OCA/helpdesk
+  - /Users/mjavint/Workspaces/Aside/Templates/vsc-odoo/OCA/openupgrade
