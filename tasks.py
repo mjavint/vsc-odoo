@@ -100,43 +100,84 @@ def aggregate(c):
 
 @task
 def config(c):
-    """Generate IDE configuration files"""
+    """Generate IDE configuration files and update Odoo config"""
     try:
-        # Obtener paths necesarios
-        odoo_path = _get_config_path("odoo", "server")
-        enterprise_path = _get_config_path("odoo", "enterprise")
-        repo_paths = [
-            _PROJECT_ROOT / Path(repo)
-            for repo in _get_config_value("repos")
-        ]
+        # Cargar configuración
+        config = _load_config()
+        odoo_config = config.get("odoo", {})
+        repos_config = config.get("repos", [])
 
-        # Generar paths para la configuración
-        paths = [
-            odoo_path,
-            odoo_path / "addons",
-            enterprise_path,
-            *repo_paths
-        ]
-        extra_paths = [str(p.resolve()) for p in paths if p.exists()]
+        # Obtener paths principales
+        odoo_path = Path(odoo_config.get("server", "")).resolve()
+        enterprise_path = Path(odoo_config.get("enterprise", "")).resolve() if odoo_config.get("enterprise") else None
+
+        # Validar paths principales
+        if not odoo_path.exists():
+            raise FileNotFoundError(f"Odoo server path not found: {odoo_path}")
+
+        server_addons_path = odoo_path / "addons"
+        if not server_addons_path.exists():
+            logger.warning("Odoo addons directory not found: %s", server_addons_path)
+
+        # Procesar repositorios
+        valid_repos = []
+        seen_paths = set()
+
+        for repo in repos_config:
+            repo_path = Path(repo)
+
+            # Convertir a path absoluto si es relativo
+            if not repo_path.is_absolute():
+                repo_path = _PROJECT_ROOT / repo_path
+
+            repo_resolved = repo_path.resolve()
+
+            # Validaciones
+            if not repo_resolved.exists():
+                logger.warning("⚠️ Repo path does not exist: %s", repo_resolved)
+                continue
+
+            if repo_resolved == odoo_path:
+                logger.info("⏩ Skipping server path in repos: %s", repo_resolved)
+                continue
+
+            if repo_resolved in seen_paths:
+                logger.info("⏩ Skipping duplicate path: %s", repo_resolved)
+                continue
+
+            seen_paths.add(repo_resolved)
+            valid_repos.append(repo_resolved)
+            logger.debug("✅ Added valid repo: %s", repo_resolved)
 
         # 1. Generar pyrightconfig.json
         pyright_config = _PROJECT_ROOT / "pyrightconfig.json"
-        logger.info("Generating %s", pyright_config)
+        logger.info("📄 Generating %s", pyright_config)
+
+        analysis_paths = [str(server_addons_path)]
+
+        # Agregar enterprise si existe y es diferente
+        if enterprise_path and enterprise_path.exists() and enterprise_path != odoo_path:
+            analysis_paths.append(str(enterprise_path))
+
+        # Agregar repos válidos
+        analysis_paths.extend(str(repo) for repo in valid_repos)
+
         with open(pyright_config, "w") as f:
-            json.dump({"extraPaths": extra_paths}, f, indent=4)
+            analysis_paths.append(str(odoo_path))
+            json.dump({"extraPaths": analysis_paths}, f, indent=4)
+            logger.info("✅ Pyright config created with %d paths", len(analysis_paths))
 
         # 2. Generar configuración de VSCode
         vscode_dir = _PROJECT_ROOT / ".vscode"
         vscode_dir.mkdir(exist_ok=True)
 
         vscode_settings = vscode_dir / "settings.json"
-        logger.info("Generating %s", vscode_settings)
+        logger.info("📄 Generating %s", vscode_settings)
 
-        # Configuración base
         settings = {
             "settings": {
-                "python.autoComplete.extraPaths": extra_paths,
-                "python.analysis.extraPaths": extra_paths,
+                "python.autoComplete.extraPaths": analysis_paths,
+                "python.analysis.extraPaths": analysis_paths,
                 "python.formatting.provider": "none",
                 "python.linting.flake8Enabled": True,
                 "python.linting.ignorePatterns": [
@@ -174,11 +215,73 @@ def config(c):
 
         with open(vscode_settings, "w") as f:
             json.dump(settings, f, indent=4)
+            logger.info("✅ VSCode settings created")
 
-        logger.info("VSCode configuration created successfully")
+        # 3. Actualizar odoo.conf
+        odoo_conf_path = _PROJECT_ROOT / "odoo.conf"
+        logger.info("🔧 Updating %s", odoo_conf_path)
+
+        addons_paths = [str(server_addons_path)]
+
+        if enterprise_path and enterprise_path.exists():
+            addons_paths.append(str(enterprise_path))
+
+        addons_paths.extend(str(repo) for repo in valid_repos)
+
+        new_addons_line = f"addons_path = {','.join(addons_paths)}\n"
+
+        # Leer y modificar el archivo
+        conf_lines = []
+        if odoo_conf_path.exists():
+            with open(odoo_conf_path, "r") as f:
+                conf_lines = f.readlines()
+
+        in_options = False
+        updated = False
+        new_conf = []
+
+        for line in conf_lines:
+            stripped = line.strip()
+
+            if stripped.startswith("[options]"):
+                in_options = True
+                new_conf.append(line)
+                continue
+
+            if in_options:
+                if stripped.startswith("addons_path"):
+                    new_conf.append(new_addons_line)
+                    updated = True
+                    continue
+                elif stripped.startswith("[") and stripped.endswith("]"):
+                    in_options = False
+
+            new_conf.append(line)
+
+        # Si no se actualizó, agregar en [options]
+        if not updated:
+            options_found = False
+            for i, line in enumerate(new_conf):
+                if line.strip().startswith("[options]"):
+                    new_conf.insert(i + 1, new_addons_line)
+                    options_found = True
+                    break
+
+            if not options_found:
+                new_conf.append("\n[options]\n")
+                new_conf.append(new_addons_line)
+
+        # Escribir archivo
+        with open(odoo_conf_path, "w") as f:
+            f.writelines(new_conf)
+            logger.info("✅ Odoo config updated with addons_path: %s", addons_paths)
+
+        logger.info("🎉 Configuration completed successfully!")
+        logger.info("📦 Total repos processed: %d", len(valid_repos))
+        logger.info("🚀 Paths in addons_path:\n%s", "\n".join(f"• {path}" for path in addons_paths))
 
     except Exception as e:
-        logger.error("Configuration generation failed: %s", e)
+        logger.error("❌ Configuration failed: %s", e)
         raise
 
 
