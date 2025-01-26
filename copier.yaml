@@ -1,0 +1,96 @@
+# Configure jinja2 defaults to make syntax highlighters lives easier
+_templates_suffix: .jinja
+
+# Other Copier configurations
+_min_copier_version: '9'
+_exclude:
+  - /.git
+  - /.github
+  - /.gitmodules
+  - /**.pyc
+  - /**.pyo
+  - /copier.yml
+  - /COPYING
+  - /vendor
+
+# Questions for the user
+odoo_version:
+  help: On which odoo version is it based?
+  type: float
+  default: 18.0
+  choices:
+    - 8.0
+    - 9.0
+    - 10.0
+    - 11.0
+    - 12.0
+    - 13.0
+    - 14.0
+    - 15.0
+    - 16.0
+    - 17.0
+    - 18.0
+
+odoo_admin_password:
+  secret: true
+  default: example-admin-password
+  type: str
+  help: >-
+    💡 To auto-generate strong passwords, see https://ddg.gg/?q=password+64+strong
+
+    ⚠️ This password is critical for security, especially if you set odoo_listdb to
+    true, so keep it safe.
+
+    What will be your odoo admin password?
+
+project_author:
+  type: str
+  help: >-
+    Tell me who you are.
+
+    If private modules do not include this author, pylint will warn you.
+  default: Devtoolschool
+
+project_name:
+  type: str
+  help: >-
+    What's your project name?
+
+    Do not use dots or spaces in the name; just "A-Za-z0-9-_" please.
+  default: myproject-odoo
+
+db_user:
+  type: str
+  help: >-
+    What's database username?
+
+    Do not use dots or spaces in the name; just "A-Za-z0-9-_" please.
+  default: odoo
+
+db_passwd:
+  type: str
+  help: >-
+    What's database password?
+
+    Do not use dots or spaces in the name; just "A-Za-z0-9-_" please.
+  default: odoo
+
+project_license:
+  help: >-
+    It's important to use a good license for your project.
+
+    In https://choosealicense.com/ you can read details about most common FOSS ones. In
+    https://www.odoo.com/documentation/user/14.0/legal/licenses/licenses.html you can
+    find other propietary licenses we support in this scaffolding. Make a wise choice!
+
+    So, what's your project's license?
+  default: BSL-1.0
+  choices:
+    No license: no_license
+    Apache License 2.0: Apache-2.0
+    Boost Software License 1.0: BSL-1.0
+    GNU Affero General Public License (AGPL) 3.0 or later: AGPL-3.0-or-later
+    GNU Library or "Lesser" General Public License (LGPL) 3.0 or later: LGPL-3.0-or-later
+    MIT license: MIT
+    Odoo Enterprise Edition License v1.0: OEEL-1.0
+    Odoo Proprietary License v1.0: OPL-1.0
