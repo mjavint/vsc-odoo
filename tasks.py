@@ -11,7 +11,7 @@ from yaml import Loader, load
 logger = logging.getLogger(__name__)
 if not logger.handlers:
     handler = logging.StreamHandler()
-    formatter = logging.Formatter("[ %(levelname)s ] - %(message)s")
+    formatter = logging.Formatter("▸ %(message)s")
     handler.setFormatter(formatter)
     logger.addHandler(handler)
 logger.setLevel(logging.INFO)
@@ -21,21 +21,20 @@ _CONFIG: Optional[Dict[str, Any]] = None
 _PROJECT_ROOT = Path(__file__).parent.absolute()
 _VENV_DIR = _PROJECT_ROOT / "venv"
 
-
 def _load_config() -> Dict[str, Any]:
     """Load and cache configuration from config.yaml"""
     global _CONFIG
     if _CONFIG is None:
         try:
             config_path = _PROJECT_ROOT / "config.yaml"
-            logger.info("Loading configuration from %s", config_path)
+            logger.info("📂 Loading configuration from %s", config_path)
             with open(config_path) as f:
                 _CONFIG = load(f, Loader=Loader)
+            logger.debug("✅ Configuration loaded successfully")
         except Exception as e:
-            logger.error("Failed to load configuration: %s", e)
+            logger.error("❌ Failed to load configuration: %s", e)
             raise RuntimeError("Configuration load failed") from e
     return _CONFIG
-
 
 def _get_config_value(*keys: str) -> Any:
     """Get a configuration value without path conversion"""
@@ -45,18 +44,16 @@ def _get_config_value(*keys: str) -> Any:
             value = value[key]
         return value
     except KeyError as e:
-        logger.error("Missing configuration key: %s", keys)
+        logger.error("❌ Missing configuration key: %s", keys)
         raise ValueError(f"Missing configuration key: {keys}") from e
-
 
 def _get_config_path(*keys: str) -> Path:
     """Get a path from configuration with validation"""
     value = _get_config_value(*keys)
     path = _PROJECT_ROOT / str(value)
     if not path.exists():
-        logger.warning("Path does not exist: %s", path)
+        logger.warning("⚠️ Path does not exist: %s", path)
     return path
-
 
 def _get_venv_python() -> Path:
     """Get path to virtual environment Python interpreter"""
@@ -67,14 +64,13 @@ def _get_venv_python() -> Path:
 
     if not python_exe.exists():
         raise FileNotFoundError(
-            f"Virtual environment Python not found at {python_exe}. "
+            f"❌ Virtual environment Python not found at {python_exe}. "
             "Did you run the check task?"
         )
     return python_exe
 
-
 def _run_in_venv(c, command: str):
-    """Ejecuta un comando en el entorno virtual activado"""
+    """Execute command in the activated virtual environment"""
     if platform.system() == "Windows":
         activate_script = _VENV_DIR / "Scripts" / "activate.bat"
         full_cmd = f'call "{activate_script}" && {command}'
@@ -84,30 +80,104 @@ def _run_in_venv(c, command: str):
         full_cmd = f'source "{activate_script}" && {command}'
         c.run(full_cmd, shell="/bin/bash")
 
-
-@task
-def aggregate(c):
-    """Run git-aggregate using the virtual environment"""
+@task(help={
+    'verbose': 'Enable verbose output mode',
+    'path': 'Specify subdirectory to lint (default: project root)'
+})
+def lint(c, verbose=False, path=""):
+    """Run pre-commit linting checks"""
     try:
-        repos_file = _PROJECT_ROOT / "repos.yaml"
-        logger.info("Running git-aggregate with %s", repos_file)
-        _run_in_venv(c, f"gitaggregate -c {repos_file}")
-        logger.info("Git aggregation completed successfully")
+        cmd = "pre-commit run --show-diff-on-failure --all-files --color=always"
+        if verbose:
+            cmd += " --verbose"
+            logger.info("🔍 Running linting in verbose mode...")
+        else:
+            logger.info("🔍 Running linting checks...")
+
+        target_dir = _PROJECT_ROOT / path
+        logger.debug("▸ Target directory: %s", target_dir)
+
+        with c.cd(str(target_dir)):
+            _run_in_venv(c, cmd)
+
+        logger.info("✅ Linting completed successfully")
     except Exception as e:
-        logger.error("Git aggregation failed: %s", e)
+        logger.error("❌ Linting failed: %s", e)
         raise
 
-
-@task
-def config(c):
-    """Generate IDE configuration files and update Odoo config"""
+@task(help={
+    'force': 'Force recreation of virtual environment'
+})
+def check(c, force=False):
+    """Create virtual environment if needed"""
     try:
-        # Cargar configuración
+        python_version = _get_config_value("python")
+
+        if force and _VENV_DIR.exists():
+            shutil.rmtree(_VENV_DIR)
+            logger.info("♻️ Removing existing virtual environment")
+
+        if not _VENV_DIR.exists():
+            logger.info("🛠️ Creating virtual environment with Python %s", python_version)
+            c.run(f"uv venv {_VENV_DIR} --python {python_version}")
+            logger.info("✅ Virtual environment created at: %s", _VENV_DIR)
+        else:
+            logger.info("✅ Virtual environment already exists: %s", _VENV_DIR)
+    except Exception as e:
+        logger.error("❌ Virtual environment creation failed: %s", e)
+        raise
+
+@task(pre=[check], help={
+    'file': 'Custom requirements file path'
+})
+def deps(c, file='requirements.txt'):
+    """Install additional Python dependencies"""
+    try:
+        requirements = _PROJECT_ROOT / file
+        logger.info("📦 Installing dependencies from %s", requirements.name)
+        _run_in_venv(c, f"uv pip install -r {requirements}")
+        logger.info("✅ Dependencies installed successfully")
+    except Exception as e:
+        logger.error("❌ Dependency installation failed: %s", e)
+        raise
+
+@task(pre=[check])
+def check_odoo(c):
+    """Install Odoo core dependencies"""
+    try:
+        odoo_path = _get_config_path("odoo", "server")
+        requirements = odoo_path / "requirements.txt"
+        logger.info("📦 Installing Odoo dependencies...")
+        _run_in_venv(c, f"uv pip install -r {requirements}")
+        logger.info("✅ Odoo dependencies installed successfully")
+    except Exception as e:
+        logger.error("❌ Odoo dependency installation failed: %s", e)
+        raise
+
+@task(help={
+    'config': 'Custom repos configuration file'
+})
+def aggregate(c, config='repos.yaml'):
+    """Synchronize git repositories using git-aggregate"""
+    try:
+        repos_file = _PROJECT_ROOT / config
+        logger.info("🔄 Synchronizing repositories with %s", repos_file.name)
+        _run_in_venv(c, f"gitaggregate -c {repos_file}")
+        logger.info("✅ Repository synchronization completed")
+    except Exception as e:
+        logger.error("❌ Repository synchronization failed: %s", e)
+        raise
+
+@task(help={
+    'ide': 'Generate configuration for specific IDE (vscode)'
+})
+def config(c, ide='vscode'):
+    """Generate development environment configuration files"""
+    try:
         config = _load_config()
         odoo_config = config.get("odoo", {})
         repos_config = config.get("repos", [])
 
-        # Obtener paths principales
         odoo_path = Path(odoo_config.get("server", "")).resolve()
         enterprise_path = (
             Path(odoo_config.get("enterprise", "")).resolve()
@@ -115,30 +185,26 @@ def config(c):
             else None
         )
 
-        # Validar paths principales
+        logger.info("🔍 Validating core paths...")
         if not odoo_path.exists():
-            raise FileNotFoundError(f"Odoo server path not found: {odoo_path}")
+            raise FileNotFoundError(f"❌ Odoo path not found: {odoo_path}")
 
         server_addons_path = odoo_path / "addons"
         if not server_addons_path.exists():
-            logger.warning("Odoo addons directory not found: %s", server_addons_path)
+            logger.warning("⚠️ Odoo addons directory missing: %s", server_addons_path)
 
-        # Procesar repositorios
+        logger.info("📦 Processing repositories...")
         valid_repos = []
         seen_paths = set()
 
         for repo in repos_config:
             repo_path = Path(repo)
-
-            # Convertir a path absoluto si es relativo
             if not repo_path.is_absolute():
                 repo_path = _PROJECT_ROOT / repo_path
-
             repo_resolved = repo_path.resolve()
 
-            # Validaciones
             if not repo_resolved.exists():
-                logger.warning("⚠️ Repo path does not exist: %s", repo_resolved)
+                logger.warning("⚠️ Repository path does not exist: %s", repo_resolved)
                 continue
 
             if repo_resolved == odoo_path:
@@ -151,80 +217,70 @@ def config(c):
 
             seen_paths.add(repo_resolved)
             valid_repos.append(repo_resolved)
-            logger.debug("✅ Added valid repo: %s", repo_resolved)
+            logger.debug("▸ Valid repository: %s", repo_resolved)
 
-        # 1. Generar pyrightconfig.json
+        # Generate pyrightconfig.json
         pyright_config = _PROJECT_ROOT / "pyrightconfig.json"
-        logger.info("📄 Generating %s", pyright_config)
+        logger.info("🛠️ Generating %s", pyright_config.name)
 
         analysis_paths = [str(server_addons_path)]
-
-        # Agregar enterprise si existe y es diferente
-        if (
-            enterprise_path
-            and enterprise_path.exists()
-            and enterprise_path != odoo_path
-        ):
+        if enterprise_path and enterprise_path.exists() and enterprise_path != odoo_path:
             analysis_paths.append(str(enterprise_path))
-
-        # Agregar repos válidos
         analysis_paths.extend(str(repo) for repo in valid_repos)
 
         with open(pyright_config, "w") as f:
             analysis_paths.append(str(odoo_path))
             json.dump({"extraPaths": analysis_paths}, f, indent=4)
-            logger.info("✅ Pyright config created with %d paths", len(analysis_paths))
+        logger.info("✅ %s created with %d paths", pyright_config.name, len(analysis_paths))
 
-        # 2. Generar configuración de VSCode
-        vscode_dir = _PROJECT_ROOT / ".vscode"
-        vscode_dir.mkdir(exist_ok=True)
+        # Generate VSCode configuration
+        if ide.lower() == 'vscode':
+            vscode_dir = _PROJECT_ROOT / ".vscode"
+            vscode_dir.mkdir(exist_ok=True)
+            vscode_settings = vscode_dir / "settings.json"
 
-        vscode_settings = vscode_dir / "settings.json"
-        logger.info("📄 Generating %s", vscode_settings)
-
-        settings = {
-            "settings": {
-                "python.autoComplete.extraPaths": analysis_paths,
-                "python.analysis.extraPaths": analysis_paths,
-                "python.formatting.provider": "none",
-                "python.linting.flake8Enabled": True,
-                "python.linting.ignorePatterns": [f"{odoo_path}/**/*.py"],
-                "python.linting.pylintArgs": [
-                    f"--init-hook=\"import sys;sys.path.append('{odoo_path}')\"",
-                    "--load-plugins=pylint_odoo",
-                ],
-                "python.linting.pylintEnabled": True,
-                "python.defaultInterpreterPath": str(_get_venv_python()),
-                "restructuredtext.confPath": "",
-                "search.followSymlinks": False,
-                "search.useIgnoreFiles": False,
-                "[python]": {"editor.defaultFormatter": "ms-python.black-formatter"},
-                "[json]": {"editor.defaultFormatter": "esbenp.prettier-vscode"},
-                "[jsonc]": {"editor.defaultFormatter": "esbenp.prettier-vscode"},
-                "[markdown]": {"editor.defaultFormatter": "esbenp.prettier-vscode"},
-                "[yaml]": {"editor.defaultFormatter": "esbenp.prettier-vscode"},
-                "[xml]": {"editor.formatOnSave": False},
+            logger.info("🛠️ Generating %s", vscode_settings.name)
+            settings = {
+                "settings": {
+                    "python.autoComplete.extraPaths": analysis_paths,
+                    "python.analysis.extraPaths": analysis_paths,
+                    "python.formatting.provider": "none",
+                    "python.linting.flake8Enabled": True,
+                    "python.linting.ignorePatterns": [f"{odoo_path}/**/*.py"],
+                    "python.linting.pylintArgs": [
+                        f"--init-hook=\"import sys;sys.path.append('{odoo_path}')\"",
+                        "--load-plugins=pylint_odoo",
+                    ],
+                    "python.linting.pylintEnabled": True,
+                    "python.defaultInterpreterPath": str(_get_venv_python()),
+                    "restructuredtext.confPath": "",
+                    "search.followSymlinks": False,
+                    "search.useIgnoreFiles": False,
+                    "[python]": {"editor.defaultFormatter": "ms-python.black-formatter"},
+                    "[json]": {"editor.defaultFormatter": "esbenp.prettier-vscode"},
+                    "[jsonc]": {"editor.defaultFormatter": "esbenp.prettier-vscode"},
+                    "[markdown]": {"editor.defaultFormatter": "esbenp.prettier-vscode"},
+                    "[yaml]": {"editor.defaultFormatter": "esbenp.prettier-vscode"},
+                    "[xml]": {"editor.formatOnSave": False},
+                }
             }
-        }
 
-        with open(vscode_settings, "w") as f:
-            json.dump(settings, f, indent=4)
-            logger.info("✅ VSCode settings created")
+            with open(vscode_settings, "w") as f:
+                json.dump(settings, f, indent=4)
+            logger.info("✅ %s created", vscode_settings.name)
 
-        # 3. Actualizar odoo.conf
+        # Update odoo.conf
         odoo_conf_path = _PROJECT_ROOT / "odoo.conf"
-        logger.info("🔧 Updating %s", odoo_conf_path)
+        logger.info("🛠️ Updating %s", odoo_conf_path.name)
 
         addons_paths = [str(server_addons_path)]
-
         if enterprise_path and enterprise_path.exists():
             addons_paths.append(str(enterprise_path))
-
         addons_paths.extend(str(repo) for repo in valid_repos)
 
         new_addons_line = f"addons_path = {','.join(addons_paths)}\n"
 
-        # Leer y modificar el archivo
+        # Original update logic
         conf_lines = []
         if odoo_conf_path.exists():
             with open(odoo_conf_path, "r") as f:
@@ -252,7 +308,6 @@ def config(c):
 
             new_conf.append(line)
 
-        # Si no se actualizó, agregar en [options]
         if not updated:
             options_found = False
             for i, line in enumerate(new_conf):
@@ -265,116 +320,151 @@ def config(c):
                 new_conf.append("\n[options]\n")
                 new_conf.append(new_addons_line)
 
-        # Escribir archivo
         with open(odoo_conf_path, "w") as f:
             f.writelines(new_conf)
-            logger.info("✅ Odoo config updated with addons_path: %s", addons_paths)
 
-        logger.info("🎉 Configuration completed successfully!")
-        logger.info("📦 Total repos processed: %d", len(valid_repos))
-        logger.info(
-            "🚀 Paths in addons_path:\n%s",
-            "\n".join(f"• {path}" for path in addons_paths),
-        )
+        logger.info("✅ %s updated successfully", odoo_conf_path.name)
+        logger.debug("▸ New addons_path line: %s", new_addons_line.strip())
+        logger.info("🎉 Configuration completed!")
+        logger.debug("▸ Total repositories: %d", len(valid_repos))
+        logger.debug("▸ Addons paths:\n%s", "\n".join(f"• {path}" for path in addons_paths))
 
     except Exception as e:
         logger.error("❌ Configuration failed: %s", e)
         raise
 
-
-@task
-def check_odoo(c):
-    """Install Odoo dependencies in virtual environment"""
-    try:
-        odoo_path = _get_config_path("odoo", "server")
-        requirements = odoo_path / "requirements.txt"
-        logger.info("Installing Odoo dependencies from %s", requirements)
-        _run_in_venv(c, f"uv pip install -r {requirements}")
-        logger.info("Odoo dependencies installed successfully")
-    except Exception as e:
-        logger.error("Odoo dependency installation failed: %s", e)
-        raise
-
-
-@task
+@task(pre=[check])
 def check_uv(c):
-    """Ensure uv is installed globally for venv creation"""
+    """Verify uv installation and install if missing"""
     try:
         uv_path = shutil.which("uv")
         if uv_path:
-            logger.info("uv found in system PATH: %s", uv_path)
+            logger.info("✅ uv already installed: %s", uv_path)
             return
 
-        logger.info("Installing uv...")
+        logger.info("📦 Installing uv...")
         if platform.system() == "Windows":
             c.run('powershell -c "irm https://astral.sh/uv/install.ps1 | iex"')
         else:
             c.run("curl -LsSf https://astral.sh/uv/install.sh | sh")
-
-        logger.info("uv installed successfully")
-
+        logger.info("✅ uv installed successfully")
     except Exception as e:
-        logger.error("uv installation failed: %s", e)
+        logger.error("❌ uv installation failed: %s", e)
         raise
 
+@task(help={
+    'skip_deps': 'Skip dependency installation (default: False)',
+    'skip_config': 'Skip configuration generation (default: False)',
+    'skip_aggregate': 'Skip repository synchronization (default: False)'
+})
+def install(c, skip_deps: bool = False, skip_config: bool = False, skip_aggregate: bool = False):
+    """Full development environment setup
 
-@task
-def deps(c):
-    """Install additional dependencies in virtual environment"""
+    Examples:
+        invoke install  # Run all steps
+        invoke install --skip-aggregate  # Skip repository sync
+        invoke install --skip-deps --skip-config  # Only sync repositories
+    """
     try:
-        requirements = _PROJECT_ROOT / "requirements.txt"
-        logger.info("Installing additional dependencies from %s", requirements)
-        _run_in_venv(c, f"uv pip install -r {requirements}")
-        logger.info("Additional dependencies installed successfully")
+        # Validación inicial
+        logger.info("🚀 Starting environment setup...")
+        check(c)  # Siempre verificar el entorno
+
+        # Diagrama de ejecución
+        steps = {
+            'Dependencies': (not skip_deps, lambda: (deps(c), check_odoo(c))),
+            'Configuration': (not skip_config, lambda: config(c)),
+            'Repositories': (not skip_aggregate, lambda: aggregate(c))
+        }
+
+        # Ejecutar pasos condicionalmente
+        for step_name, (should_run, task_fn) in steps.items():
+            if should_run:
+                logger.info(f"⚙️ Running {step_name}...")
+                task_fn()
+            else:
+                logger.warning(f"⏩ Skipping {step_name}")
+
+        # Post-instalación
+        logger.info("✅ Verification passed!")
+        logger.info("🎉 Environment setup completed successfully")
+        logger.info(f"➡️ Next step: Run Odoo with 🚀 invoke start")
+
     except Exception as e:
-        logger.error("Dependency installation failed: %s", e)
+        logger.error("❌ Critical installation error: %s", e)
+        logger.info("🔧 Troubleshooting tips:")
+        logger.info("  - Check internet connection")
+        logger.info("  - Validate config.yaml syntax")
+        logger.info("  - Try 'invoke check --force' to rebuild environment")
         raise
 
-
-@task(pre=[check_uv])
-def check(c):
-    """Create virtual environment if needed"""
+@task(pre=[deps, aggregate, config], help={
+    'update_deps': 'Update all dependencies to latest versions'
+})
+def update(c, update_deps=False):
+    """Update development environment components"""
     try:
-        python_version = _get_config_value("python")
-
-        if not _VENV_DIR.exists():
-            logger.info("Creating virtual environment with Python %s", python_version)
-            c.run(f"uv venv {_VENV_DIR} --python {python_version}")
-            logger.info("Virtual environment created")
-        else:
-            logger.info("Virtual environment already exists")
-
+        if update_deps:
+            logger.info("🔄 Updating dependencies...")
+            _run_in_venv(c, "uv pip install --upgrade -r requirements.txt")
+        aggregate(c)
+        config(c)
+        logger.info("✅ Environment update completed")
     except Exception as e:
-        logger.error("Virtual environment setup failed: %s", e)
+        logger.error("❌ Update failed: %s", e)
         raise
 
+@task(help={
+    'options': 'Additional Odoo CLI options (e.g.: "--dev all --http-port=8080")',
+    'config_file': 'Custom Odoo configuration file (default: odoo.conf)'
+})
+def start(c, options: str = '', config_file: str = 'odoo.conf'):
+    """Start Odoo development server
 
-@task(pre=[check, deps, check_odoo, aggregate, config])
-def install(c):
-    """Install complete development environment"""
-    logger.info("Development environment setup completed successfully")
-
-
-@task(pre=[deps, aggregate, config])
-def update(c):
-    """Update complete development environment"""
-    logger.info("Development environment update completed successfully")
-
-
-@task
-def lint(c, verbose=False, path=""):
-    """Run pre-commit linting"""
+    Examples:
+        invoke start
+        invoke start --options="--dev all --test-enable"
+        invoke start --config-file=my_config.conf
+    """
     try:
-        cmd = "pre-commit run --show-diff-on-failure --all-files --color=always"
-        if verbose:
-            cmd += " --verbose"
+        logger.info("🚀 Initializing Odoo server...")
 
-        target_dir = _PROJECT_ROOT / path
-        logger.info("Running lint in %s", target_dir)
+        # 1. Load configuration
+        config = _load_config()
+        odoo_config = config.get("odoo", {})
 
-        with c.cd(str(target_dir)):
-            _run_in_venv(c, cmd)
+        # 2. Validate Odoo installation
+        odoo_path = Path(odoo_config.get("server", "")).resolve()
+        odoo_bin = odoo_path / "odoo-bin"
+        if not odoo_bin.exists():
+            raise FileNotFoundError(f"❌ Odoo executable not found at {odoo_bin}")
+
+        # 3. Validate config file
+        config_path = _PROJECT_ROOT / config_file
+        if not config_path.exists():
+            logger.warning("⚠️ Configuration file not found: %s", config_path)
+            raise FileNotFoundError("Run 'invoke config' first to generate configuration")
+
+        # 4. Build command components
+        venv_python = _get_venv_python()
+        base_cmd = f'"{venv_python}" "{odoo_bin}" -c "{config_path}"'
+        full_cmd = f'{base_cmd} {options.strip()}'
+
+        # 5. Logging and execution
+        logger.info("⚙️ Server configuration:")
+        logger.debug("▸ Python: %s", venv_python)
+        logger.debug("▸ Odoo bin: %s", odoo_bin)
+        logger.debug("▸ Config file: %s", config_path)
+        logger.info("▸ Command: %s", full_cmd)
+
+        logger.info("🔄 Starting Odoo server...")
+        with c.cd(str(_PROJECT_ROOT)):
+            c.run(full_cmd, pty=True, echo=True)
 
     except Exception as e:
-        logger.error("Linting failed: %s", e)
+        logger.error("❌ Server startup failed: %s", e)
+        logger.info("💡 Troubleshooting tips:")
+        logger.info("  - Verify Odoo path in config.yaml")
+        logger.info("  - Check if config file exists")
+        logger.info("  - Ensure dependencies are installed with 'invoke install'")
         raise

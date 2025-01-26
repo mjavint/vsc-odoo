@@ -1,33 +1,33 @@
 [options]
 ; Configuración básica
-addons_path = addons,~/odoo/addons
+addons_path = /path/odoo/addons
 admin_passwd = {{ odoo_admin_password }}
+
+csv_internal_sep = ,
+data_dir = /Users/mjavint/Workspaces/Odoo/data
+; pg_path =
+; logfile = /var/log/odoo/odoo.log
+; log_level = debug
+
+; Configuración de servidor
+http_port = 8069
+longpolling_port = 8072
+; proxy_mode = True
+; workers = 0
+
+; Configuración de base de datos
 db_host = False
 db_port = False
 db_name = False
 db_user = {{ db_user }}
 db_password = {{ db_passwd }}
-csv_internal_sep = ,
-data_dir = ./data
-; pg_path =
-; logfile = /var/log/odoo/odoo.log        ; Ruta del archivo de log
-; log_level = debug                       ; Nivel de logging (debug para desarrollo)
-
-; Configuración de servidor
-http_port = 8069                        ; Puerto HTTP
-longpolling_port = 8072                 ; Puerto para longpolling
-; proxy_mode = True                       ; Modo proxy para múltiples instancias
-; workers = 0                             ; Desactivar multiprocesamiento para debugging
-
-; Configuración de base de datos
-list_db = True                          ; Permitir listar bases de datos
-db_name = odoo                          ; Nombre de base de datos por defecto
-db_template = template0                 ; Plantilla para nuevas bases de datos
-; db_filter = ^db_v18.*$                  ; Filtro de bases de datos
+list_db = True
+db_template = template0
+; db_filter = ^db_v18.*$
 
 ; Optimizaciones para desarrollo
-translate_modules = ['all']             ; Traducir todos los módulos
-osv_memory_count_limit = 0              ; Desactivar límite de memoria
+translate_modules = ['all']
+osv_memory_count_limit = 0
 
 ; Limites de Memoria
 limit_memory_hard = 2684354560
@@ -38,14 +38,14 @@ limit_time_real = 0
 limit_time_real_cron = -1
 
 ; Configuración de desarrollo específica
-; dev_mode = reload                       ; Modo desarrollador (recarga código)
-; debug_mode = True                       ; Activar modo depuración
-; test_enable = False                     ; Desactivar tests automáticos
-; demo = True                             ; Incluir datos demo
-; without_demo = False                    ; Incluir datos demo en DB
+; dev_mode = reload
+; debug_mode = True
+; test_enable = False
+; demo = True
+; without_demo = False
 
 
 ; Configuración de email
-; email_from = admin@example.com          ; Email remitente
-; smtp_server = localhost                 ; Servidor SMTP
-; smtp_port = 25                          ; Puerto SMTP
+; email_from = admin@example.com
+; smtp_server = localhost
+; smtp_port = 25
