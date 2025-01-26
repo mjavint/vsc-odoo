@@ -3,7 +3,7 @@ import logging
 import platform
 import shutil
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 from invoke import task
 from yaml import Loader, load
 
@@ -109,7 +109,11 @@ def config(c):
 
         # Obtener paths principales
         odoo_path = Path(odoo_config.get("server", "")).resolve()
-        enterprise_path = Path(odoo_config.get("enterprise", "")).resolve() if odoo_config.get("enterprise") else None
+        enterprise_path = (
+            Path(odoo_config.get("enterprise", "")).resolve()
+            if odoo_config.get("enterprise")
+            else None
+        )
 
         # Validar paths principales
         if not odoo_path.exists():
@@ -156,7 +160,11 @@ def config(c):
         analysis_paths = [str(server_addons_path)]
 
         # Agregar enterprise si existe y es diferente
-        if enterprise_path and enterprise_path.exists() and enterprise_path != odoo_path:
+        if (
+            enterprise_path
+            and enterprise_path.exists()
+            and enterprise_path != odoo_path
+        ):
             analysis_paths.append(str(enterprise_path))
 
         # Agregar repos válidos
@@ -180,36 +188,22 @@ def config(c):
                 "python.analysis.extraPaths": analysis_paths,
                 "python.formatting.provider": "none",
                 "python.linting.flake8Enabled": True,
-                "python.linting.ignorePatterns": [
-                    f"{odoo_path}/**/*.py"
-                ],
+                "python.linting.ignorePatterns": [f"{odoo_path}/**/*.py"],
                 "python.linting.pylintArgs": [
                     f"--init-hook=\"import sys;sys.path.append('{odoo_path}')\"",
-                    "--load-plugins=pylint_odoo"
+                    "--load-plugins=pylint_odoo",
                 ],
                 "python.linting.pylintEnabled": True,
                 "python.defaultInterpreterPath": str(_get_venv_python()),
                 "restructuredtext.confPath": "",
                 "search.followSymlinks": False,
                 "search.useIgnoreFiles": False,
-                "[python]": {
-                    "editor.defaultFormatter": "ms-python.black-formatter"
-                },
-                "[json]": {
-                    "editor.defaultFormatter": "esbenp.prettier-vscode"
-                },
-                "[jsonc]": {
-                    "editor.defaultFormatter": "esbenp.prettier-vscode"
-                },
-                "[markdown]": {
-                    "editor.defaultFormatter": "esbenp.prettier-vscode"
-                },
-                "[yaml]": {
-                    "editor.defaultFormatter": "esbenp.prettier-vscode"
-                },
-                "[xml]": {
-                    "editor.formatOnSave": False
-                }
+                "[python]": {"editor.defaultFormatter": "ms-python.black-formatter"},
+                "[json]": {"editor.defaultFormatter": "esbenp.prettier-vscode"},
+                "[jsonc]": {"editor.defaultFormatter": "esbenp.prettier-vscode"},
+                "[markdown]": {"editor.defaultFormatter": "esbenp.prettier-vscode"},
+                "[yaml]": {"editor.defaultFormatter": "esbenp.prettier-vscode"},
+                "[xml]": {"editor.formatOnSave": False},
             }
         }
 
@@ -278,7 +272,10 @@ def config(c):
 
         logger.info("🎉 Configuration completed successfully!")
         logger.info("📦 Total repos processed: %d", len(valid_repos))
-        logger.info("🚀 Paths in addons_path:\n%s", "\n".join(f"• {path}" for path in addons_paths))
+        logger.info(
+            "🚀 Paths in addons_path:\n%s",
+            "\n".join(f"• {path}" for path in addons_paths),
+        )
 
     except Exception as e:
         logger.error("❌ Configuration failed: %s", e)
@@ -356,6 +353,7 @@ def check(c):
 def install(c):
     """Install complete development environment"""
     logger.info("Development environment setup completed successfully")
+
 
 @task(pre=[deps, aggregate, config])
 def update(c):
