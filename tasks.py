@@ -262,6 +262,28 @@ def config(c, ide='vscode'):
                     "[markdown]": {"editor.defaultFormatter": "esbenp.prettier-vscode"},
                     "[yaml]": {"editor.defaultFormatter": "esbenp.prettier-vscode"},
                     "[xml]": {"editor.formatOnSave": False},
+                    "workbench.editor.customLabels.patterns": {
+                        "**/security/**": "${filename} - Security",
+                        "**/security/*.csv": "${filename}.${extname} - Security",
+                        "**/models/**": "${filename} - Model",
+                        "**/data/*.csv": "${filename}.${extname} - Data",
+                        "**/data/**": "${filename} - Data",
+                        "**/demo/**": "${filename} - Demo",
+                        "**/controllers/**": "${filename} - Controller",
+                        "**/wizard/**": "${filename} - Wizard",
+                        "**/wizards/**": "${filename} - Wizard",
+                        "**/reports/**": "${filename} - Report",
+                        "**/report/**": "${filename} - Report",
+                        "**/tests/**": "${filename} - Test",
+                        "**/views/**": "${filename} - View",
+                        "**/static/src/**/*.js": "${filename} - Component ",
+                        "**/static/src/**/*.xml": "${filename} - Template",
+                        "**/static/src/**/*.scss": "${filename} - Style",
+                        "**/__manifest__.py": "${dirname} - Odoo Manifest",
+                        "**/__init__.py": "${dirname} - Module",
+                        "**/docs/**": "${dirname} - Docs",
+                        "**/doc/**": "${dirname} - Docs"
+                    },
                 }
             }
 
