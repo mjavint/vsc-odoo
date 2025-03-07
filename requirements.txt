@@ -13,3 +13,4 @@ black
 types-invoke
 openpyxl-stubs
 pandas
+click-odoo-contrib

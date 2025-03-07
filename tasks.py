@@ -21,7 +21,8 @@ _CONFIG: Optional[Dict[str, Any]] = None
 _PROJECT_ROOT = Path(__file__).parent.absolute()
 _VENV_DIR = _PROJECT_ROOT / "venv"
 
-def _load_config() -> Dict[str, Any]:
+
+def _load_config() -> Dict[str, Any] | None:
     """Load and cache configuration from config.yaml"""
     global _CONFIG
     if _CONFIG is None:
@@ -36,6 +37,7 @@ def _load_config() -> Dict[str, Any]:
             raise RuntimeError("Configuration load failed") from e
     return _CONFIG
 
+
 def _get_config_value(*keys: str) -> Any:
     """Get a configuration value without path conversion"""
     try:
@@ -47,6 +49,7 @@ def _get_config_value(*keys: str) -> Any:
         logger.error("❌ Missing configuration key: %s", keys)
         raise ValueError(f"Missing configuration key: {keys}") from e
 
+
 def _get_config_path(*keys: str) -> Path:
     """Get a path from configuration with validation"""
     value = _get_config_value(*keys)
@@ -54,6 +57,7 @@ def _get_config_path(*keys: str) -> Path:
     if not path.exists():
         logger.warning("⚠️ Path does not exist: %s", path)
     return path
+
 
 def _get_venv_python() -> Path:
     """Get path to virtual environment Python interpreter"""
@@ -69,6 +73,7 @@ def _get_venv_python() -> Path:
         )
     return python_exe
 
+
 def _run_in_venv(c, command: str):
     """Execute command in the activated virtual environment"""
     if platform.system() == "Windows":
@@ -80,34 +85,46 @@ def _run_in_venv(c, command: str):
         full_cmd = f'source "{activate_script}" && {command}'
         c.run(full_cmd, shell="/bin/bash")
 
-@task(help={
-    'verbose': 'Enable verbose output mode',
-    'path': 'Specify subdirectory to lint (default: project root)'
-})
+
+@task(
+    help={
+        "verbose": "Enable verbose output mode",
+        "path": "Specify subdirectory to lint (default: project root)",
+    }
+)
 def lint(c, verbose=False, path=""):
     """Run pre-commit linting checks"""
     try:
-        cmd = "pre-commit run --show-diff-on-failure --all-files --color=always"
+        base_cmd = [
+            "pre-commit",
+            "run",
+            "--show-diff-on-failure",
+            "--all-files",
+            f"{path}",
+            "--color=always"
+        ]
         if verbose:
-            cmd += " --verbose"
+            base_cmd.append("--verbose")
             logger.info("🔍 Running linting in verbose mode...")
         else:
             logger.info("🔍 Running linting checks...")
 
-        target_dir = _PROJECT_ROOT / path
-        logger.debug("▸ Target directory: %s", target_dir)
+        # target_dir = _PROJECT_ROOT / path
+        # logger.debug("▸ Target directory: %s", target_dir)
 
-        with c.cd(str(target_dir)):
-            _run_in_venv(c, cmd)
+        full_cmd = " ".join(base_cmd)
+
+        _run_in_venv(c, full_cmd)
+        # with c.cd(str(target_dir)):
+        #     _run_in_venv(c, full_cmd)
 
         logger.info("✅ Linting completed successfully")
     except Exception as e:
         logger.error("❌ Linting failed: %s", e)
         raise
 
-@task(help={
-    'force': 'Force recreation of virtual environment'
-})
+
+@task(help={"force": "Force recreation of virtual environment"})
 def check(c, force=False):
     """Create virtual environment if needed"""
     try:
@@ -127,10 +144,9 @@ def check(c, force=False):
         logger.error("❌ Virtual environment creation failed: %s", e)
         raise
 
-@task(pre=[check], help={
-    'file': 'Custom requirements file path'
-})
-def deps(c, file='requirements.txt'):
+
+@task(pre=[check], help={"file": "Custom requirements file path"})
+def deps(c, file="requirements.txt"):
     """Install additional Python dependencies"""
     try:
         requirements = _PROJECT_ROOT / file
@@ -140,6 +156,7 @@ def deps(c, file='requirements.txt'):
     except Exception as e:
         logger.error("❌ Dependency installation failed: %s", e)
         raise
+
 
 @task(pre=[check])
 def check_odoo(c):
@@ -154,10 +171,9 @@ def check_odoo(c):
         logger.error("❌ Odoo dependency installation failed: %s", e)
         raise
 
-@task(help={
-    'config': 'Custom repos configuration file'
-})
-def aggregate(c, config='repos.yaml'):
+
+@task(help={"config": "Custom repos configuration file"})
+def aggregate(c, config="repos.yaml"):
     """Synchronize git repositories using git-aggregate"""
     try:
         repos_file = _PROJECT_ROOT / config
@@ -168,10 +184,9 @@ def aggregate(c, config='repos.yaml'):
         logger.error("❌ Repository synchronization failed: %s", e)
         raise
 
-@task(help={
-    'ide': 'Generate configuration for specific IDE (vscode)'
-})
-def config(c, ide='vscode'):
+
+@task(help={"ide": "Generate configuration for specific IDE (vscode)"})
+def config(c, ide="vscode"):
     """Generate development environment configuration files"""
     try:
         config = _load_config()
@@ -224,17 +239,23 @@ def config(c, ide='vscode'):
         logger.info("🛠️ Generating %s", pyright_config.name)
 
         analysis_paths = [str(server_addons_path)]
-        if enterprise_path and enterprise_path.exists() and enterprise_path != odoo_path:
+        if (
+            enterprise_path
+            and enterprise_path.exists()
+            and enterprise_path != odoo_path
+        ):
             analysis_paths.append(str(enterprise_path))
         analysis_paths.extend(str(repo) for repo in valid_repos)
 
         with open(pyright_config, "w") as f:
             analysis_paths.append(str(odoo_path))
             json.dump({"extraPaths": analysis_paths}, f, indent=4)
-        logger.info("✅ %s created with %d paths", pyright_config.name, len(analysis_paths))
+        logger.info(
+            "✅ %s created with %d paths", pyright_config.name, len(analysis_paths)
+        )
 
         # Generate VSCode configuration
-        if ide.lower() == 'vscode':
+        if ide.lower() == "vscode":
             vscode_dir = _PROJECT_ROOT / ".vscode"
             vscode_dir.mkdir(exist_ok=True)
             vscode_settings = vscode_dir / "settings.json"
@@ -256,7 +277,9 @@ def config(c, ide='vscode'):
                     "restructuredtext.confPath": "",
                     "search.followSymlinks": False,
                     "search.useIgnoreFiles": False,
-                    "[python]": {"editor.defaultFormatter": "ms-python.black-formatter"},
+                    "[python]": {
+                        "editor.defaultFormatter": "ms-python.black-formatter"
+                    },
                     "[json]": {"editor.defaultFormatter": "esbenp.prettier-vscode"},
                     "[jsonc]": {"editor.defaultFormatter": "esbenp.prettier-vscode"},
                     "[markdown]": {"editor.defaultFormatter": "esbenp.prettier-vscode"},
@@ -282,7 +305,7 @@ def config(c, ide='vscode'):
                         "**/__manifest__.py": "${dirname} - Odoo Manifest",
                         "**/__init__.py": "${dirname} - Module",
                         "**/docs/**": "${dirname} - Docs",
-                        "**/doc/**": "${dirname} - Docs"
+                        "**/doc/**": "${dirname} - Docs",
                     },
                 }
             }
@@ -349,11 +372,14 @@ def config(c, ide='vscode'):
         logger.debug("▸ New addons_path line: %s", new_addons_line.strip())
         logger.info("🎉 Configuration completed!")
         logger.debug("▸ Total repositories: %d", len(valid_repos))
-        logger.debug("▸ Addons paths:\n%s", "\n".join(f"• {path}" for path in addons_paths))
+        logger.debug(
+            "▸ Addons paths:\n%s", "\n".join(f"• {path}" for path in addons_paths)
+        )
 
     except Exception as e:
         logger.error("❌ Configuration failed: %s", e)
         raise
+
 
 @task(pre=[check])
 def check_uv(c):
@@ -374,12 +400,17 @@ def check_uv(c):
         logger.error("❌ uv installation failed: %s", e)
         raise
 
-@task(help={
-    'skip_deps': 'Skip dependency installation (default: False)',
-    'skip_config': 'Skip configuration generation (default: False)',
-    'skip_aggregate': 'Skip repository synchronization (default: False)'
-})
-def install(c, skip_deps: bool = False, skip_config: bool = False, skip_aggregate: bool = False):
+
+@task(
+    help={
+        "skip_deps": "Skip dependency installation (default: False)",
+        "skip_config": "Skip configuration generation (default: False)",
+        "skip_aggregate": "Skip repository synchronization (default: False)",
+    }
+)
+def install(
+    c, skip_deps: bool = False, skip_config: bool = False, skip_aggregate: bool = False
+):
     """Full development environment setup
 
     Examples:
@@ -394,9 +425,9 @@ def install(c, skip_deps: bool = False, skip_config: bool = False, skip_aggregat
 
         # Diagrama de ejecución
         steps = {
-            'Dependencies': (not skip_deps, lambda: (deps(c), check_odoo(c))),
-            'Configuration': (not skip_config, lambda: config(c)),
-            'Repositories': (not skip_aggregate, lambda: aggregate(c))
+            "Dependencies": (not skip_deps, lambda: (deps(c), check_odoo(c))),
+            "Configuration": (not skip_config, lambda: config(c)),
+            "Repositories": (not skip_aggregate, lambda: aggregate(c)),
         }
 
         # Ejecutar pasos condicionalmente
@@ -410,7 +441,7 @@ def install(c, skip_deps: bool = False, skip_config: bool = False, skip_aggregat
         # Post-instalación
         logger.info("✅ Verification passed!")
         logger.info("🎉 Environment setup completed successfully")
-        logger.info(f"➡️ Next step: Run Odoo with 🚀 invoke start")
+        logger.info("➡️ Next step: Run Odoo with 🚀 invoke start")
 
     except Exception as e:
         logger.error("❌ Critical installation error: %s", e)
@@ -420,9 +451,11 @@ def install(c, skip_deps: bool = False, skip_config: bool = False, skip_aggregat
         logger.info("  - Try 'invoke check --force' to rebuild environment")
         raise
 
-@task(pre=[deps, aggregate, config], help={
-    'update_deps': 'Update all dependencies to latest versions'
-})
+
+@task(
+    pre=[deps, aggregate, config],
+    help={"update_deps": "Update all dependencies to latest versions"},
+)
 def update(c, update_deps=False):
     """Update development environment components"""
     try:
@@ -436,11 +469,14 @@ def update(c, update_deps=False):
         logger.error("❌ Update failed: %s", e)
         raise
 
-@task(help={
-    'options': 'Additional Odoo CLI options (e.g.: "--dev all --http-port=8080")',
-    'config_file': 'Custom Odoo configuration file (default: odoo.conf)'
-})
-def start(c, options: str = '', config_file: str = 'odoo.conf'):
+
+@task(
+    help={
+        "options": 'Additional Odoo CLI options (e.g.: "--dev all --http-port=8080")',
+        "config_file": "Custom Odoo configuration file (default: odoo.conf)",
+    }
+)
+def start(c, options: str = "", config_file: str = "odoo.conf"):
     """Start Odoo development server
 
     Examples:
@@ -465,12 +501,22 @@ def start(c, options: str = '', config_file: str = 'odoo.conf'):
         config_path = _PROJECT_ROOT / config_file
         if not config_path.exists():
             logger.warning("⚠️ Configuration file not found: %s", config_path)
-            raise FileNotFoundError("Run 'invoke config' first to generate configuration")
+            raise FileNotFoundError(
+                "Run 'invoke config' first to generate configuration"
+            )
 
         # 4. Build command components
         venv_python = _get_venv_python()
-        base_cmd = f'"{venv_python}" "{odoo_bin}" -c "{config_path}"'
-        full_cmd = f'{base_cmd} {options.strip()}'
+
+        base_cmd = [
+            f'"{venv_python}"',
+            f"{odoo_bin}",
+            "-c",
+            f'"{config_path}"'
+        ]
+
+        base_cmd.append(options.strip())
+        full_cmd = " ".join(base_cmd)
 
         # 5. Logging and execution
         logger.info("⚙️ Server configuration:")
@@ -490,3 +536,308 @@ def start(c, options: str = '', config_file: str = 'odoo.conf'):
         logger.info("  - Check if config file exists")
         logger.info("  - Ensure dependencies are installed with 'invoke install'")
         raise
+
+
+def _get_backup_config():
+    """Obtiene la configuración necesaria para el backup desde config.yaml
+
+    Returns:
+        tuple: (config_path, dest_dir, backup_format, odoo_server_path, target_dir)
+    """
+    config = _load_config()
+    database_config = config.get("database", {})
+    odoo_config = config.get("odoo", {})
+    target_dir = None  # Inicializar para manejo de errores
+
+    config_path = Path(database_config["odoo_conf"]).resolve()
+    dest_dir = Path(database_config["dest_dir"])
+    odoo_server_path = Path(odoo_config.get("server", "")).resolve()
+
+    return {
+        "config_path": config_path,
+        "dest_dir": dest_dir,
+        "odoo_server_path": odoo_server_path,
+        "target_dir": target_dir
+    }
+
+
+def _make_cmd(cmd: str, config_path: Path, odoo_server_path: Path) -> list:
+    if not odoo_server_path.exists():
+        raise FileNotFoundError(
+            f"❌ Ruta de Odoo no encontrada: {odoo_server_path}"
+        )
+    if not config_path.exists():
+        raise FileNotFoundError(
+            f"❌ Archivo de configuración no encontrado: {config_path}"
+        )
+    venv_python = _get_venv_python()
+
+    # 3. Construir comando con parámetros de config.yaml
+    base_cmd = [
+        f'"{venv_python}"',
+        "-m",
+        f"click_odoo_contrib.{cmd}",
+        "-c",
+        f'"{config_path}"'
+    ]
+    return base_cmd or []
+
+
+@task
+def backupdb(c, dbname, format="zip"):
+    """
+    Ejecuta click-odoo-backupdb desde el entorno virtual
+    """
+    try:
+        # Obtener configuración de backup
+        config = _get_backup_config()
+
+        if not dbname:
+            raise ValueError("❌ Se requiere el nombre de la base de datos")
+
+        if format in ["zip", "dump"]:
+            target_dir = config['dest_dir'] / f"{dbname}.{format}"
+            # Eliminar archivo existente si es zip o dump
+            if target_dir.exists():
+                logger.info(f"♻️ Eliminando archivo existente: {target_dir}")
+                target_dir.unlink()
+        else:
+            target_dir = config['dest_dir'] / dbname
+            # Para formato folder, eliminar directorio si existe
+            if target_dir.exists():
+                logger.info(f"♻️ Eliminando directorio existente: {target_dir}")
+                shutil.rmtree(target_dir)
+
+        target_dir.parent.mkdir(parents=True, exist_ok=True)
+
+        base_cmd = _make_cmd("backupdb", config["config_path"], config['odoo_server_path'])
+        base_cmd.extend([dbname, str(target_dir), "--format", str(format)])
+        full_cmd = " ".join(base_cmd)
+
+        # 5. Ejecutar backup desde directorio de Odoo
+        logger.info("⚙️ Ejecutando backup de base de datos...")
+        logger.debug("▸ Configuración: %s", config["config_path"])
+        logger.debug("▸ Destino: %s", target_dir)
+        logger.debug("▸ Formato: %s", format)
+
+        with c.cd(str(config['odoo_server_path'])):
+            c.run(full_cmd, pty=True, echo=True)
+
+    except Exception as e:
+        logger.error("❌ Error al salvar la base de datos: %s", e)
+        logger.info(
+            "  - Validar nombre de BD y permisos en %s",
+            target_dir.resolve()
+            if target_dir and target_dir.exists()
+            else "directorio de destino",
+        )
+        logger.info("💡 Solución de problemas:")
+        logger.info("  - Verificar configuración en database: de config.yaml")
+        logger.info("  - Validar ruta de Odoo en config.yaml")
+        logger.info("  - Asegurar click-odoo-contrib instalado")
+        raise
+
+
+@task
+def dropdb(c, dbname, exists: bool = False):
+    """
+    Ejecuta click-odoo-dropdb desde el entorno virtual
+    """
+    try:
+        # Obtener configuración
+        config = _get_backup_config()
+
+        if not dbname:
+            raise ValueError("❌ Se requiere el nombre de la base de datos")
+
+        base_cmd = _make_cmd("dropdb", config['config_path'], config['odoo_server_path'])
+
+        if exists:
+            base_cmd.append("--if-exists")
+
+        base_cmd.append(dbname)
+
+        full_cmd = " ".join(base_cmd)
+
+        # 5. Ejecutar backup desde directorio de Odoo
+        logger.info("🗑️ Eliminando la base de datos...")
+        logger.debug("▸ Configuración: %s", config['config_path'])
+
+        with c.cd(str(config['odoo_server_path'])):
+            c.run(full_cmd, pty=True, echo=True)
+            logger.info("✅ Base de datos %s eliminada correctamente", dbname)
+
+    except Exception as e:
+        logger.error("❌ Error al eliminar la base de datos: %s", e)
+        logger.info("💡 Solución de problemas:")
+        logger.info("  - Verificar configuración en database: de config.yaml")
+        logger.info("  - Validar ruta de Odoo en config.yaml")
+        logger.info("  - Validar nombre de BD ")
+        logger.info("  - Asegurar click-odoo-contrib instalado")
+        raise
+
+
+@task
+def listdb(c):
+    """
+    Ejecuta click-odoo-listdb desde el entorno virtual
+    """
+    try:
+        # Obtener configuración
+        config = _get_backup_config()
+
+        base_cmd = _make_cmd("listdb", config['config_path'], config['odoo_server_path'])
+
+        full_cmd = " ".join(base_cmd)
+
+        # 5. Ejecutar backup desde directorio de Odoo
+        logger.info("📋 Listando todas las bases de datos...")
+        logger.debug("▸ Configuración: %s", config['config_path'])
+
+        with c.cd(str(config['odoo_server_path'])):
+            c.run(full_cmd, pty=True, echo=True)
+
+    except Exception as e:
+        logger.error("❌ Error al eliminar la base de datos: %s", e)
+        logger.info("💡 Solución de problemas:")
+        logger.info("  - Verificar configuración en database: de config.yaml")
+        logger.info("  - Validar ruta de Odoo en config.yaml")
+        logger.info("  - Validar nombre de BD ")
+        logger.info("  - Asegurar click-odoo-contrib instalado")
+        raise
+
+
+@task
+def initdb(c, dbname, modules=None, demo=True, cache=False):
+    """
+    Init an Odoo database using click-odoo-initdb.
+    """
+    try:
+        # Obtener configuración
+        config = _get_backup_config()
+
+        if not dbname:
+            raise ValueError("❌ Se requiere el nombre de la base de datos")
+
+        # 3. Construir comando con parámetros de config.yaml
+        base_cmd = _make_cmd("initdb", config['config_path'], config['odoo_server_path'])
+
+        if demo:
+            base_cmd.append("--demo")
+        else:
+            base_cmd.append("--no-demo")
+
+        if cache:
+            base_cmd.append("--cache")
+        else:
+            base_cmd.append("--no-cache")
+
+        if modules is not None:
+            base_cmd.extend(["--modules", modules])
+
+        base_cmd.extend(["-n", dbname])
+
+        full_cmd = " ".join(base_cmd)
+
+        # 5. Ejecutar backup desde directorio de Odoo
+        logger.info("📋 Inicializando la base de datos %s", dbname)
+        logger.debug("▸ Configuración: %s", config['config_path'])
+
+        with c.cd(str(config['odoo_server_path'])):
+            c.run(full_cmd, pty=True, echo=True)
+
+    except Exception as e:
+        logger.error("❌ Error al Inicializar la base de datos: %s", e)
+        logger.info("💡 Solución de problemas:")
+        logger.info("  - Verificar configuración en database: de config.yaml")
+        logger.info("  - Validar ruta de Odoo en config.yaml")
+        logger.info("  - Validar nombre de BD ")
+        logger.info("  - Asegurar click-odoo-contrib instalado")
+        raise
+
+@task
+def uninstall(c, dbname, modules=None):
+    """
+    Uninstall modules an Odoo database using click-odoo-initdb.
+    """
+    try:
+        # Obtener configuración
+        config = _get_backup_config()
+
+        if not dbname:
+            raise ValueError("❌ Se requiere el nombre de la base de datos")
+
+        # 3. Construir comando con parámetros de config.yaml
+        base_cmd = _make_cmd("uninstall", config['config_path'], config['odoo_server_path'])
+
+        if modules is not None:
+            base_cmd.extend(["--modules", modules])
+
+        base_cmd.extend(["-d", dbname])
+
+        full_cmd = " ".join(base_cmd)
+
+        # 5. Ejecutar backup desde directorio de Odoo
+        logger.info("📋 Desinstalando modulos la base de datos %s", dbname)
+        logger.debug("▸ Configuración: %s", config['config_path'])
+
+        with c.cd(str(config['odoo_server_path'])):
+            c.run(full_cmd, pty=True, echo=True)
+
+    except Exception as e:
+        logger.error("❌ Error al desinstalar modulos de la base de datos: %s", e)
+        logger.info("💡 Solución de problemas:")
+        logger.info("  - Verificar configuración en database: de config.yaml")
+        logger.info("  - Validar ruta de Odoo en config.yaml")
+        logger.info("  - Validar nombre de BD ")
+        logger.info("  - Asegurar click-odoo-contrib instalado")
+        raise
+
+
+# @task
+# def restoredb(c, dbname, copy=True, force=False, neutralize=False, jobs=None):
+#     """
+#     Restore an Odoo database using click-odoo-restoredb.
+#     """
+#     try:
+#         # Obtener configuración
+#         config = _get_backup_config()
+
+#         base_cmd = _make_cmd("restoredb", config['config_path'], config['odoo_server_path'])
+
+#         if copy:
+#             base_cmd.append("--copy")
+#         else:
+#             base_cmd.append("--move")
+
+#         if force:
+#             base_cmd.append("--force")
+
+#         if neutralize:
+#             base_cmd.append("--neutralize")
+
+#         if jobs is not None:
+#             base_cmd.extend(["--jobs", str(jobs)])
+
+#         source = f'{config['dest_dir']}/{dbname}.zip'
+#         logger.info("💡 Source de la base de datos %s", source)
+
+#         base_cmd.extend([dbname, source])
+
+#         full_cmd = " ".join(base_cmd)
+
+#         # 5. Ejecutar backup desde directorio de Odoo
+#         logger.info("📋 Restaurando la base de datos %s", dbname)
+#         logger.debug("▸ Configuración: %s", config['config_path'])
+
+#         with c.cd(str(config['odoo_server_path'])):
+#             c.run(full_cmd, pty=True, echo=True)
+
+#     except Exception as e:
+#         logger.error("❌ Error al eliminar la base de datos: %s", e)
+#         logger.info("💡 Solución de problemas:")
+#         logger.info("  - Verificar configuración en database: de config.yaml")
+#         logger.info("  - Validar ruta de Odoo en config.yaml")
+#         logger.info("  - Validar nombre de BD ")
+#         logger.info("  - Asegurar click-odoo-contrib instalado")
+#         raise
