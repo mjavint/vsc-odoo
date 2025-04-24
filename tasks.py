@@ -3,7 +3,8 @@ import logging
 import platform
 import shutil
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any
+
 from invoke import task
 from yaml import Loader, load
 
@@ -17,12 +18,12 @@ if not logger.handlers:
 logger.setLevel(logging.INFO)
 
 # Cached configuration and paths
-_CONFIG: Optional[Dict[str, Any]] = None
+_CONFIG: dict[str, Any] | None = None
 _PROJECT_ROOT = Path(__file__).parent.absolute()
 _VENV_DIR = _PROJECT_ROOT / "venv"
 
 
-def _load_config() -> Dict[str, Any] | None:
+def _load_config() -> dict[str, Any] | None:
     """Load and cache configuration from config.yaml"""
     global _CONFIG
     if _CONFIG is None:
@@ -265,8 +266,14 @@ def config(c, ide="vscode"):
                 "settings": {
                     "python.autoComplete.extraPaths": analysis_paths,
                     "python.analysis.extraPaths": analysis_paths,
-                    "python.formatting.provider": "none",
-                    "python.linting.flake8Enabled": True,
+                    "[python]": {
+                        "editor.formatOnSave": True,
+                        "editor.codeActionsOnSave": {
+                            "source.fixAll": "explicit",
+                            "source.organizeImports": "explicit"
+                        },
+                        "editor.defaultFormatter": "charliermarsh.ruff"
+                    },
                     "python.linting.ignorePatterns": [f"{odoo_path}/**/*.py"],
                     "python.linting.pylintArgs": [
                         f"--init-hook=\"import sys;sys.path.append('{odoo_path}')\"",
@@ -277,9 +284,6 @@ def config(c, ide="vscode"):
                     "restructuredtext.confPath": "",
                     "search.followSymlinks": False,
                     "search.useIgnoreFiles": False,
-                    "[python]": {
-                        "editor.defaultFormatter": "ms-python.black-formatter"
-                    },
                     "[json]": {"editor.defaultFormatter": "esbenp.prettier-vscode"},
                     "[jsonc]": {"editor.defaultFormatter": "esbenp.prettier-vscode"},
                     "[markdown]": {"editor.defaultFormatter": "esbenp.prettier-vscode"},
@@ -328,7 +332,7 @@ def config(c, ide="vscode"):
         # Original update logic
         conf_lines = []
         if odoo_conf_path.exists():
-            with open(odoo_conf_path, "r") as f:
+            with open(odoo_conf_path) as f:
                 conf_lines = f.readlines()
 
         in_options = False
