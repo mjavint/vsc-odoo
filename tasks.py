@@ -102,7 +102,7 @@ def lint(c, verbose=False, path=""):
             "--show-diff-on-failure",
             "--all-files",
             f"{path}",
-            "--color=always"
+            "--color=always",
         ]
         if verbose:
             base_cmd.append("--verbose")
@@ -266,13 +266,14 @@ def config(c, ide="vscode"):
                 "settings": {
                     "python.autoComplete.extraPaths": analysis_paths,
                     "python.analysis.extraPaths": analysis_paths,
+                    "python.languageServer": "None",
                     "[python]": {
                         "editor.formatOnSave": True,
                         "editor.codeActionsOnSave": {
                             "source.fixAll": "explicit",
-                            "source.organizeImports": "explicit"
+                            "source.organizeImports": "explicit",
                         },
-                        "editor.defaultFormatter": "charliermarsh.ruff"
+                        "editor.defaultFormatter": "charliermarsh.ruff",
                     },
                     "python.linting.ignorePatterns": [f"{odoo_path}/**/*.py"],
                     "python.linting.pylintArgs": [
@@ -512,12 +513,7 @@ def start(c, options: str = "", config_file: str = "odoo.conf"):
         # 4. Build command components
         venv_python = _get_venv_python()
 
-        base_cmd = [
-            f'"{venv_python}"',
-            f"{odoo_bin}",
-            "-c",
-            f'"{config_path}"'
-        ]
+        base_cmd = [f'"{venv_python}"', f"{odoo_bin}", "-c", f'"{config_path}"']
 
         base_cmd.append(options.strip())
         full_cmd = " ".join(base_cmd)
@@ -561,15 +557,13 @@ def _get_backup_config():
         "config_path": config_path,
         "dest_dir": dest_dir,
         "odoo_server_path": odoo_server_path,
-        "target_dir": target_dir
+        "target_dir": target_dir,
     }
 
 
 def _make_cmd(cmd: str, config_path: Path, odoo_server_path: Path) -> list:
     if not odoo_server_path.exists():
-        raise FileNotFoundError(
-            f"❌ Ruta de Odoo no encontrada: {odoo_server_path}"
-        )
+        raise FileNotFoundError(f"❌ Ruta de Odoo no encontrada: {odoo_server_path}")
     if not config_path.exists():
         raise FileNotFoundError(
             f"❌ Archivo de configuración no encontrado: {config_path}"
@@ -582,7 +576,7 @@ def _make_cmd(cmd: str, config_path: Path, odoo_server_path: Path) -> list:
         "-m",
         f"click_odoo_contrib.{cmd}",
         "-c",
-        f'"{config_path}"'
+        f'"{config_path}"',
     ]
     return base_cmd or []
 
@@ -600,13 +594,13 @@ def backupdb(c, dbname, format="zip"):
             raise ValueError("❌ Se requiere el nombre de la base de datos")
 
         if format in ["zip", "dump"]:
-            target_dir = config['dest_dir'] / f"{dbname}.{format}"
+            target_dir = config["dest_dir"] / f"{dbname}.{format}"
             # Eliminar archivo existente si es zip o dump
             if target_dir.exists():
                 logger.info(f"♻️ Eliminando archivo existente: {target_dir}")
                 target_dir.unlink()
         else:
-            target_dir = config['dest_dir'] / dbname
+            target_dir = config["dest_dir"] / dbname
             # Para formato folder, eliminar directorio si existe
             if target_dir.exists():
                 logger.info(f"♻️ Eliminando directorio existente: {target_dir}")
@@ -614,7 +608,9 @@ def backupdb(c, dbname, format="zip"):
 
         target_dir.parent.mkdir(parents=True, exist_ok=True)
 
-        base_cmd = _make_cmd("backupdb", config["config_path"], config['odoo_server_path'])
+        base_cmd = _make_cmd(
+            "backupdb", config["config_path"], config["odoo_server_path"]
+        )
         base_cmd.extend([dbname, str(target_dir), "--format", str(format)])
         full_cmd = " ".join(base_cmd)
 
@@ -624,7 +620,7 @@ def backupdb(c, dbname, format="zip"):
         logger.debug("▸ Destino: %s", target_dir)
         logger.debug("▸ Formato: %s", format)
 
-        with c.cd(str(config['odoo_server_path'])):
+        with c.cd(str(config["odoo_server_path"])):
             c.run(full_cmd, pty=True, echo=True)
 
     except Exception as e:
@@ -654,7 +650,9 @@ def dropdb(c, dbname, exists: bool = False):
         if not dbname:
             raise ValueError("❌ Se requiere el nombre de la base de datos")
 
-        base_cmd = _make_cmd("dropdb", config['config_path'], config['odoo_server_path'])
+        base_cmd = _make_cmd(
+            "dropdb", config["config_path"], config["odoo_server_path"]
+        )
 
         if exists:
             base_cmd.append("--if-exists")
@@ -665,9 +663,9 @@ def dropdb(c, dbname, exists: bool = False):
 
         # 5. Ejecutar backup desde directorio de Odoo
         logger.info("🗑️ Eliminando la base de datos...")
-        logger.debug("▸ Configuración: %s", config['config_path'])
+        logger.debug("▸ Configuración: %s", config["config_path"])
 
-        with c.cd(str(config['odoo_server_path'])):
+        with c.cd(str(config["odoo_server_path"])):
             c.run(full_cmd, pty=True, echo=True)
             logger.info("✅ Base de datos %s eliminada correctamente", dbname)
 
@@ -690,15 +688,17 @@ def listdb(c):
         # Obtener configuración
         config = _get_backup_config()
 
-        base_cmd = _make_cmd("listdb", config['config_path'], config['odoo_server_path'])
+        base_cmd = _make_cmd(
+            "listdb", config["config_path"], config["odoo_server_path"]
+        )
 
         full_cmd = " ".join(base_cmd)
 
         # 5. Ejecutar backup desde directorio de Odoo
         logger.info("📋 Listando todas las bases de datos...")
-        logger.debug("▸ Configuración: %s", config['config_path'])
+        logger.debug("▸ Configuración: %s", config["config_path"])
 
-        with c.cd(str(config['odoo_server_path'])):
+        with c.cd(str(config["odoo_server_path"])):
             c.run(full_cmd, pty=True, echo=True)
 
     except Exception as e:
@@ -724,7 +724,9 @@ def initdb(c, dbname, modules=None, demo=True, cache=False):
             raise ValueError("❌ Se requiere el nombre de la base de datos")
 
         # 3. Construir comando con parámetros de config.yaml
-        base_cmd = _make_cmd("initdb", config['config_path'], config['odoo_server_path'])
+        base_cmd = _make_cmd(
+            "initdb", config["config_path"], config["odoo_server_path"]
+        )
 
         if demo:
             base_cmd.append("--demo")
@@ -745,9 +747,9 @@ def initdb(c, dbname, modules=None, demo=True, cache=False):
 
         # 5. Ejecutar backup desde directorio de Odoo
         logger.info("📋 Inicializando la base de datos %s", dbname)
-        logger.debug("▸ Configuración: %s", config['config_path'])
+        logger.debug("▸ Configuración: %s", config["config_path"])
 
-        with c.cd(str(config['odoo_server_path'])):
+        with c.cd(str(config["odoo_server_path"])):
             c.run(full_cmd, pty=True, echo=True)
 
     except Exception as e:
@@ -758,6 +760,7 @@ def initdb(c, dbname, modules=None, demo=True, cache=False):
         logger.info("  - Validar nombre de BD ")
         logger.info("  - Asegurar click-odoo-contrib instalado")
         raise
+
 
 @task
 def uninstall(c, dbname, modules=None):
@@ -772,7 +775,9 @@ def uninstall(c, dbname, modules=None):
             raise ValueError("❌ Se requiere el nombre de la base de datos")
 
         # 3. Construir comando con parámetros de config.yaml
-        base_cmd = _make_cmd("uninstall", config['config_path'], config['odoo_server_path'])
+        base_cmd = _make_cmd(
+            "uninstall", config["config_path"], config["odoo_server_path"]
+        )
 
         if modules is not None:
             base_cmd.extend(["--modules", modules])
@@ -783,9 +788,9 @@ def uninstall(c, dbname, modules=None):
 
         # 5. Ejecutar backup desde directorio de Odoo
         logger.info("📋 Desinstalando modulos la base de datos %s", dbname)
-        logger.debug("▸ Configuración: %s", config['config_path'])
+        logger.debug("▸ Configuración: %s", config["config_path"])
 
-        with c.cd(str(config['odoo_server_path'])):
+        with c.cd(str(config["odoo_server_path"])):
             c.run(full_cmd, pty=True, echo=True)
 
     except Exception as e:
