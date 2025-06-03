@@ -803,50 +803,52 @@ def uninstall(c, dbname, modules=None):
         raise
 
 
-# @task
-# def restoredb(c, dbname, copy=True, force=False, neutralize=False, jobs=None):
-#     """
-#     Restore an Odoo database using click-odoo-restoredb.
-#     """
-#     try:
-#         # Obtener configuración
-#         config = _get_backup_config()
+@task
+def restoredb(c, dbname, copy=True, force=False, neutralize=False, jobs=None):
+    """
+    Restore an Odoo database using click-odoo-restoredb.
+    """
+    try:
+        # Obtener configuración
+        config = _get_backup_config()
 
-#         base_cmd = _make_cmd("restoredb", config['config_path'], config['odoo_server_path'])
+        base_cmd = _make_cmd("restoredb", config['config_path'], config['odoo_server_path'],)
 
-#         if copy:
-#             base_cmd.append("--copy")
-#         else:
-#             base_cmd.append("--move")
+        if copy:
+            base_cmd.append("--copy")
+        else:
+            base_cmd.append("--move")
 
-#         if force:
-#             base_cmd.append("--force")
+        if force:
+            base_cmd.append("--force")
 
-#         if neutralize:
-#             base_cmd.append("--neutralize")
+        if neutralize:
+            base_cmd.append("--neutralize")
 
-#         if jobs is not None:
-#             base_cmd.extend(["--jobs", str(jobs)])
+        if jobs is not None:
+            base_cmd.extend(["--jobs", str(jobs)])
 
-#         source = f'{config['dest_dir']}/{dbname}.zip'
-#         logger.info("💡 Source de la base de datos %s", source)
+        src_dir = config["dest_dir"] / dbname
 
-#         base_cmd.extend([dbname, source])
+        source = f'{src_dir}.zip'
+        logger.info("💡 Source de la base de datos %s", source)
 
-#         full_cmd = " ".join(base_cmd)
+        base_cmd.extend([dbname, source])
 
-#         # 5. Ejecutar backup desde directorio de Odoo
-#         logger.info("📋 Restaurando la base de datos %s", dbname)
-#         logger.debug("▸ Configuración: %s", config['config_path'])
+        full_cmd = " ".join(base_cmd)
 
-#         with c.cd(str(config['odoo_server_path'])):
-#             c.run(full_cmd, pty=True, echo=True)
+        # 5. Ejecutar backup desde directorio de Odoo
+        logger.info("📋 Restaurando la base de datos %s", dbname)
+        logger.debug("▸ Configuración: %s", config['config_path'])
 
-#     except Exception as e:
-#         logger.error("❌ Error al eliminar la base de datos: %s", e)
-#         logger.info("💡 Solución de problemas:")
-#         logger.info("  - Verificar configuración en database: de config.yaml")
-#         logger.info("  - Validar ruta de Odoo en config.yaml")
-#         logger.info("  - Validar nombre de BD ")
-#         logger.info("  - Asegurar click-odoo-contrib instalado")
-#         raise
+        with c.cd(str(config['odoo_server_path'])):
+            c.run(full_cmd, pty=True, echo=True)
+
+    except Exception as e:
+        logger.error("❌ Error al eliminar la base de datos: %s", e)
+        logger.info("💡 Solución de problemas:")
+        logger.info("  - Verificar configuración en database: de config.yaml")
+        logger.info("  - Validar ruta de Odoo en config.yaml")
+        logger.info("  - Validar nombre de BD ")
+        logger.info("  - Asegurar click-odoo-contrib instalado")
+        raise
