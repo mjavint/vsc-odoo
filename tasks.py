@@ -625,12 +625,6 @@ def backupdb(c, dbname, format="zip"):
 
     except Exception as e:
         logger.error("❌ Error al salvar la base de datos: %s", e)
-        logger.info(
-            "  - Validar nombre de BD y permisos en %s",
-            target_dir.resolve()
-            if target_dir and target_dir.exists()
-            else "directorio de destino",
-        )
         logger.info("💡 Solución de problemas:")
         logger.info("  - Verificar configuración en database: de config.yaml")
         logger.info("  - Validar ruta de Odoo en config.yaml")
