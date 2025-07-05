@@ -1,4 +1,4 @@
-{%-if odoo_version < 14 %}
+{%- if odoo_version < 14 %}
 Babel==2.6.0
 chardet==3.0.4
 decorator==4.3.0
@@ -46,7 +46,7 @@ XlsxWriter==1.1.2
 xlwt==1.3.*
 xlrd==1.1.0
 pypiwin32 ; sys_platform == 'win32'
-{%- ilif odoo_version > 13 and odoo_version < 15 %}
+{%- elif odoo_version > 13 and odoo_version < 15 %}
 Babel==2.6.0; python_version <= '3.9'
 Babel==2.9.1; python_version > '3.9'  # (Jammy) 2.6.0 has issues with python 3.10
 chardet==3.0.4
@@ -110,7 +110,7 @@ xlwt==1.3.*
 xlrd==1.1.0; python_version < '3.8'
 xlrd==1.2.0; python_version >= '3.8'
 pypiwin32 ; sys_platform == 'win32'
-{%- ilif odoo_version > 14 and odoo_version < 16 %}
+{%- elif odoo_version > 14 and odoo_version < 16 %}
 Babel==2.9.1  # min version = 2.6.0 (Focal with security backports)
 chardet==3.0.4
 cryptography==2.6.1; python_version < '3.12'  # incompatibility between pyopenssl 19.0.0 and cryptography>=37.0.0
@@ -181,7 +181,7 @@ xlrd==1.2.0; python_version >= '3.8'
 XlsxWriter==1.1.2
 xlwt==1.3.0
 zeep==3.4.0
-{%- ilif odoo_version > 15 and odoo_version < 17 %}
+{%- elif odoo_version > 15 and odoo_version < 17 %}
 # The officially supported versions of the following packages are their
 # python3-* equivalent distributed in Ubuntu 22.04 and Debian 11
 Babel==2.9.1  # min version = 2.6.0 (Focal with security backports)
@@ -263,7 +263,7 @@ xlrd==1.2.0; python_version >= '3.8'
 XlsxWriter==1.1.2
 xlwt==1.3.0
 zeep==4.0.0
-{%- else odoo_version > 16 %}
+{%- elif odoo_version > 16 %}
 # The officially supported versions of the following packages are their
 # python3-* equivalent distributed in Ubuntu 22.04 and Debian 11
 Babel==2.9.1 ; python_version < '3.11'  # min version = 2.6.0 (Focal with security backports)
