@@ -1,10 +1,10 @@
 [options]
 ; Configuración básica
-addons_path = /path/odoo/addons
+addons_path = /workspace/odoo/addons,/workspace/addons
 admin_passwd = {{ odoo_admin_password }}
 
 csv_internal_sep = ,
-data_dir = /Users/mjavint/Workspaces/Odoo/data
+; data_dir = /var/lib/odoo
 ; pg_path =
 ; logfile = /var/log/odoo/odoo.log
 ; log_level = debug
@@ -16,7 +16,7 @@ gevent-port = 8072
 ; workers = 0
 
 ; Configuración de base de datos
-db_host = False
+db_host = {{ pgcontainer_name }}
 db_port = False
 db_name = False
 db_user = {{ db_user }}

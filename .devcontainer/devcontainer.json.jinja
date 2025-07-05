@@ -1,0 +1,60 @@
+// For format details, see https://aka.ms/devcontainer.json. For config options, see the
+// README at: https://github.com/devcontainers/templates/tree/main/src/python
+{
+  "name": "{{project_name}}",
+  // Or use a Dockerfile or Docker Compose file. More info: https://containers.dev/guide/dockerfile
+  // "image": "mcr.microsoft.com/devcontainers/python:3.10-bookworm"
+  "dockerComposeFile": "docker-compose.yml",
+  "service": "{{project_name}}",
+  "workspaceFolder": "/workspace",
+  // Features to add to the dev container. More info: https://containers.dev/features.
+  // "features": {}
+  // Use 'forwardPorts' to make a list of ports inside the container available locally.
+  // "forwardPorts": ["odoo:8069", "odoo:8071", "odoo:8072", "db:5432"],
+  // Use 'postCreateCommand' to run commands after the container is created.
+  // "postCreateCommand": "pip install --no-cache-dir -r requirements.txt",
+  // Configure tool-specific properties.
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "mvintg.odoo-file",
+        "trinhanhngoc.vscode-odoo",
+        "odoo.owl-vision",
+        "esbenp.prettier-vscode",
+        "charliermarsh.ruff",
+        "DotJoshJohnson.xml",
+        "codezombiech.gitignore",
+        "usernamehw.errorlens",
+        "formulahendry.auto-complete-tag",
+        "mrorz.language-gettext"
+      ],
+      "settings": {
+        "python.languageServer": "None",
+        "editor.tabSize": 4,
+        "terminal.integrated.cursorStyle": "underline",
+        "terminal.integrated.cursorBlinking": true,
+        "terminal.integrated.fontFamily": "MesloLGS NF",
+        "terminal.integrated.fontLigatures.enabled": true,
+        "terminal.integrated.defaultProfile.linux": "zsh",
+        "python.defaultInterpreterPath": ".venv/bin/python",
+        "python.terminal.activateEnvInCurrentTerminal": true
+      }
+    }
+  },
+  "mounts": [
+    {
+      "source": "zshhistory",
+      "target": "/commandhistory",
+      "type": "volume"
+    },
+    {
+      "source": "${localEnv:HOME}/.ssh",
+      "target": "/home/odoo/.ssh",
+      "type": "bind"
+    }
+  ],
+  // Uncomment to connect as root instead. More info: https://aka.ms/dev-containers-non-root.
+  "remoteUser": "odoo",
+  "containerUser": "odoo"
+}

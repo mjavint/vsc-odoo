@@ -20,7 +20,7 @@ logger.setLevel(logging.INFO)
 # Cached configuration and paths
 _CONFIG: dict[str, Any] | None = None
 _PROJECT_ROOT = Path(__file__).parent.absolute()
-_VENV_DIR = _PROJECT_ROOT / "venv"
+_VENV_DIR = _PROJECT_ROOT / ".venv"
 
 
 def _load_config() -> dict[str, Any] | None:
@@ -163,10 +163,18 @@ def deps(c, file="requirements.txt"):
 def check_odoo(c):
     """Install Odoo core dependencies"""
     try:
-        odoo_path = _get_config_path("odoo", "server")
-        requirements = odoo_path / "requirements.txt"
+        odoo_version = _get_config_path("odoo", "version")
+        # requirements = odoo_path / "requirements.txt"
+        req = _PROJECT_ROOT / "requirements.txt"
+        if not req.exists():
+            logger.info(
+                f"📂 requirements.txt not found, downloading from OCA/OCB for Odoo {odoo_version}"
+            )
+            c.run(
+                "curl -o requirements.txt https://raw.githubusercontent.com/OCA/OCB/17.0/requirements.txt && sed -i -E \"s/(gevent==)21\.8\.0( ; sys_platform != 'win32' and python_version == '3.10')/\\122.10.2\\2/;s/(greenlet==)1.1.2( ; sys_platform != 'win32' and python_version == '3.10')/\\12.0.2\\2/\" requirements.txt"
+            )
         logger.info("📦 Installing Odoo dependencies...")
-        _run_in_venv(c, f"uv pip install -r {requirements}")
+        _run_in_venv(c, "uv pip install -r requirements.txt")
         logger.info("✅ Odoo dependencies installed successfully")
     except Exception as e:
         logger.error("❌ Odoo dependency installation failed: %s", e)
@@ -430,7 +438,7 @@ def install(
 
         # Diagrama de ejecución
         steps = {
-            "Dependencies": (not skip_deps, lambda: (deps(c), check_odoo(c))),
+            "Dependencies": (not skip_deps, lambda: (check_odoo(c))),
             "Configuration": (not skip_config, lambda: config(c)),
             "Repositories": (not skip_aggregate, lambda: aggregate(c)),
         }
@@ -625,6 +633,12 @@ def backupdb(c, dbname, format="zip"):
 
     except Exception as e:
         logger.error("❌ Error al salvar la base de datos: %s", e)
+        logger.info(
+            "  - Validar nombre de BD y permisos en %s",
+            target_dir.resolve()
+            if target_dir and target_dir.exists()
+            else "directorio de destino",
+        )
         logger.info("💡 Solución de problemas:")
         logger.info("  - Verificar configuración en database: de config.yaml")
         logger.info("  - Validar ruta de Odoo en config.yaml")
@@ -797,52 +811,50 @@ def uninstall(c, dbname, modules=None):
         raise
 
 
-@task
-def restoredb(c, dbname, copy=True, force=False, neutralize=False, jobs=None):
-    """
-    Restore an Odoo database using click-odoo-restoredb.
-    """
-    try:
-        # Obtener configuración
-        config = _get_backup_config()
+# @task
+# def restoredb(c, dbname, copy=True, force=False, neutralize=False, jobs=None):
+#     """
+#     Restore an Odoo database using click-odoo-restoredb.
+#     """
+#     try:
+#         # Obtener configuración
+#         config = _get_backup_config()
 
-        base_cmd = _make_cmd("restoredb", config['config_path'], config['odoo_server_path'],)
+#         base_cmd = _make_cmd("restoredb", config['config_path'], config['odoo_server_path'])
 
-        if copy:
-            base_cmd.append("--copy")
-        else:
-            base_cmd.append("--move")
+#         if copy:
+#             base_cmd.append("--copy")
+#         else:
+#             base_cmd.append("--move")
 
-        if force:
-            base_cmd.append("--force")
+#         if force:
+#             base_cmd.append("--force")
 
-        if neutralize:
-            base_cmd.append("--neutralize")
+#         if neutralize:
+#             base_cmd.append("--neutralize")
 
-        if jobs is not None:
-            base_cmd.extend(["--jobs", str(jobs)])
+#         if jobs is not None:
+#             base_cmd.extend(["--jobs", str(jobs)])
 
-        src_dir = config["dest_dir"] / dbname
+#         source = f'{config['dest_dir']}/{dbname}.zip'
+#         logger.info("💡 Source de la base de datos %s", source)
 
-        source = f'{src_dir}.zip'
-        logger.info("💡 Source de la base de datos %s", source)
+#         base_cmd.extend([dbname, source])
 
-        base_cmd.extend([dbname, source])
+#         full_cmd = " ".join(base_cmd)
 
-        full_cmd = " ".join(base_cmd)
+#         # 5. Ejecutar backup desde directorio de Odoo
+#         logger.info("📋 Restaurando la base de datos %s", dbname)
+#         logger.debug("▸ Configuración: %s", config['config_path'])
 
-        # 5. Ejecutar backup desde directorio de Odoo
-        logger.info("📋 Restaurando la base de datos %s", dbname)
-        logger.debug("▸ Configuración: %s", config['config_path'])
+#         with c.cd(str(config['odoo_server_path'])):
+#             c.run(full_cmd, pty=True, echo=True)
 
-        with c.cd(str(config['odoo_server_path'])):
-            c.run(full_cmd, pty=True, echo=True)
-
-    except Exception as e:
-        logger.error("❌ Error al eliminar la base de datos: %s", e)
-        logger.info("💡 Solución de problemas:")
-        logger.info("  - Verificar configuración en database: de config.yaml")
-        logger.info("  - Validar ruta de Odoo en config.yaml")
-        logger.info("  - Validar nombre de BD ")
-        logger.info("  - Asegurar click-odoo-contrib instalado")
-        raise
+#     except Exception as e:
+#         logger.error("❌ Error al eliminar la base de datos: %s", e)
+#         logger.info("💡 Solución de problemas:")
+#         logger.info("  - Verificar configuración en database: de config.yaml")
+#         logger.info("  - Validar ruta de Odoo en config.yaml")
+#         logger.info("  - Validar nombre de BD ")
+#         logger.info("  - Asegurar click-odoo-contrib instalado")
+#         raise

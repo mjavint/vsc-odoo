@@ -34,7 +34,7 @@ odoo_version:
 
 odoo_admin_password:
   secret: true
-  default: example-admin-password
+  default: $pbkdf2-sha512$25000$oZSylpJyzrn33vs/53xPiQ$10slfAFf/Z2fnDRjlTGr9Tp0oZoKxDd9yDP1WgbiONGeXOHxLur7zG21b83PDwEDUFEXLDdPAczuzx3PAGMsvg
   type: str
   help: >-
     💡 To auto-generate strong passwords, see https://ddg.gg/?q=password+64+strong
@@ -50,7 +50,26 @@ project_author:
     Tell me who you are.
 
     If private modules do not include this author, pylint will warn you.
-  default: Devtoolschool
+  default: Odoo Brains
+
+project_name:
+  type: str
+  help: >-
+    What's the name of your project?
+
+    This will be used to name the directory where your project will be created. Do not
+    use dots or spaces in the name; just "A-Za-z0-9-_" please.
+  default: odoo-dev
+
+pgcontainer_name:
+  type: str
+  help: >-
+    What's the name of the PostgreSQL container?
+
+    If you are using docker-compose, this is the name of the service that runs
+    PostgreSQL. If you are not using docker-compose, this is the name of the container
+    that runs PostgreSQL.
+  default: pgdb
 
 db_user:
   type: str

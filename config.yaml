@@ -1,9 +1,9 @@
 python: '3.10'
 odoo:
-  server: /Users/mjavint/Repos/Odoo/odoo/odoo.17.0
-  enterprise: /Users/mjavint/Repos/Odoo/enterprise/enterprise.17.0
+  server: /workspace/odoo
+  enterprise: /workspace/enterprise
 repos:
-  - /Users/mjavint/Workspaces/Aside/Templates/vsc-odoo/OCA/openupgrade
+  - /workspace/addons
 database:
-  odoo_conf: /Users/mjavint/Workspaces/Aside/Templates/vsc-odoo/odoo.conf
-  dest_dir: /Users/mjavint/Workspaces/Aside/Templates/vsc-odoo/dbs
+  odoo_conf: /workspace/odoo.conf
+  dest_dir: /workspace/dbs

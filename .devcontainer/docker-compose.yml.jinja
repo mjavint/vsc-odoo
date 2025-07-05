@@ -1,0 +1,29 @@
+version: '3.8'
+
+services:
+  {{project_name}}:
+    container_name: {{project_name}}
+    image: odoodevcontainer:latest
+    # build:
+    #   context: .
+    #   dockerfile: Dockerfile
+    volumes:
+      - ..:/workspace
+      - ${ODOO_SERVER}:/workspace/odoo.{{odoo_version}}:ro
+      - ${ENTERPRISE_ADDONS}:/workspace/enterprise.{{odoo_version}}:ro
+      - odoo-data:/home/odoo
+    command: sleep infinity
+    ports:
+      - '8069:8069'
+      - '8071:8071'
+      - '8072:8072'
+    networks:
+      - shared-net
+
+volumes:
+  odoo-data:
+
+networks:
+  shared-net:
+    external: true
+    name: shared-net
