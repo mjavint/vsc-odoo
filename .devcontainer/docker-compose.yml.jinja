@@ -1,9 +1,9 @@
-version: '3.8'
+version: '3'
 
 services:
   {{project_name}}:
     container_name: {{project_name}}
-    image: odoodevcontainer:latest
+    image: mjavint/odoodev:3.10
     # build:
     #   context: .
     #   dockerfile: Dockerfile
@@ -11,7 +11,7 @@ services:
       - ..:/workspace
       - ${ODOO_SERVER}:/workspace/odoo.{{odoo_version}}:ro
       - ${ENTERPRISE_ADDONS}:/workspace/enterprise.{{odoo_version}}:ro
-      - odoo-data:/home/odoo
+      - odoo-data:/var/lib/odoo
     command: sleep infinity
     ports:
       - '8069:8069'
@@ -20,8 +20,22 @@ services:
     networks:
       - shared-net
 
+  pgdb:
+    image: postgres:16.0-alpine
+    restart: unless-stopped
+    container_name: pgdb
+    volumes:
+      - pgdb-data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_PASSWORD=admin
+    ports:
+      - '5432:5432'
+    networks:
+      -  shared-net
+
 volumes:
   odoo-data:
+  pgdb-data:
 
 networks:
   shared-net:
