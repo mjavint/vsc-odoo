@@ -15,15 +15,15 @@ curl -o requirements.txt "https://raw.githubusercontent.com/$ODOO_SOURCE/$ODOO_V
 {%- endif %}
 
 echo "📥 Creating virtual environment..."
-uv venv \
-    && echo "🔁 Activating virtual environment and syncing dependencies..." \
-    && source .venv/bin/activate \
-    && uv sync \
+uv sync
 
-echo "📥 Installing Python dependencies from requirements.txt..." \
-    && uv pip install --no-cache-dir -r requirements.txt \
+echo "🔁 Activating virtual environment and syncing dependencies..."
+source .venv/bin/activate
 
-echo "🧹 Cleaning up temporary requirements.txt file..." \
-rm requirements.txt \
-    && echo "✅ All dependencies installed successfully! Environment ready. 🎉" \
-    && echo "💡 Activate your environment anytime with: source .venv/bin/activate"
+echo "📥 Installing Python dependencies from requirements.txt..."
+uv pip install --no-cache-dir -r requirements.txt
+
+echo "🧹 Cleaning up temporary requirements.txt file..."
+rm requirements.txt 
+echo "✅ All dependencies installed successfully! Environment ready. 🎉" \
+echo "💡 Activate your environment anytime with: source .venv/bin/activate"
